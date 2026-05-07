@@ -60,11 +60,31 @@
     return min + Math.floor(Math.random() * (max - min + 1));
   }
 
-  /** Uniform random: wedges 1–20 or bull (21st outcome). */
+  /** Rounds 1–6: uniform random wedge 1–20. Round 7: always bull. */
   function randomRoundTarget() {
-    var pick = randomInt(1, 21);
-    if (pick === 21) return { k: 'bull' };
-    return { k: 'wedge', n: pick };
+    var r = Math.max(1, Math.min(7, Number(state.round) || 1));
+    if (r === 7) return { k: 'bull' };
+    return { k: 'wedge', n: randomInt(1, 20) };
+  }
+
+  /** Fix saved games from older rules (e.g. bull before round 7). */
+  function normalizeRoundTargetForCurrentRound() {
+    var r = Math.max(1, Math.min(7, Number(state.round) || 1));
+    if (r === 7) {
+      if (!state.roundTarget || state.roundTarget.k !== 'bull') {
+        state.roundTarget = { k: 'bull' };
+      }
+    } else {
+      var bad =
+        !state.roundTarget ||
+        state.roundTarget.k === 'bull' ||
+        typeof state.roundTarget.n !== 'number' ||
+        state.roundTarget.n < 1 ||
+        state.roundTarget.n > 20;
+      if (bad) {
+        state.roundTarget = { k: 'wedge', n: randomInt(1, 20) };
+      }
+    }
   }
 
   /** Clockwise from top — standard dartboard sector numbers */
@@ -712,19 +732,19 @@
           state.roundTarget = { k: 'wedge', n: state.targetSector };
         }
         if (state.targetSector !== undefined) delete state.targetSector;
-        if (!state.roundTarget) {
-          state.roundTarget = { k: 'wedge', n: randomInt(1, 20) };
-        }
+        normalizeRoundTargetForCurrentRound();
         state.players.forEach(function (p) {
           if (typeof p.triples !== 'number') p.triples = 0;
           if (typeof p.doubles !== 'number') p.doubles = 0;
           if (typeof p.singles !== 'number') p.singles = 0;
         });
-        if (!state.pending && state.phase === 'playing') {
-          if (state.roundTarget && state.roundTarget.k === 'bull') {
-            state.pending = { type: 'bull', vals: [null, null, null] };
-          } else {
-            state.pending = { type: 'sector', mults: [null, null, null] };
+        if (state.phase === 'playing') {
+          var wantBull = state.roundTarget && state.roundTarget.k === 'bull';
+          var pendingBull = state.pending && state.pending.type === 'bull';
+          if (!state.pending || wantBull !== pendingBull) {
+            state.pending = wantBull
+              ? { type: 'bull', vals: [null, null, null] }
+              : { type: 'sector', mults: [null, null, null] };
           }
         }
         if (state.phase === 'playing') {

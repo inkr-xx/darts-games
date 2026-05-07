@@ -5,14 +5,14 @@
 - **Players:** 1..n. **Setup order** is the **fixed turn order** for **every round** (rounds **1–7**).
 - **Board:** Sectors **1..20** (miss / single / double / triple on the **round target**) and **bull** (miss / **5** / **15** — outer bull / bullseye by convention in the UI).
 - **Structure:** **7 rounds** only. There is **no** eighth round and **no** extra tie-break **play**.
-- **Random target each round:** Before each round, the app picks **uniformly** among **21** outcomes: wedges **1–20** **or** **bull** (each wedge has the same chance as any other single outcome; bull is one of the 21).
+- **Random target each round:** Rounds **1–6:** uniform random wedge **1–20** only (no bull). Round **7:** target is **always bull** (bull round scoring).
 - **Turn:** Each player has **three darts** per turn, then **Confirm turn**.
 - **Scoring — wedge target (1–20):** Points per dart are **not** face value; they are **multiplier points only**:
   - Miss **0**, single **1**, double **2**, triple **3** (per dart, summed for the turn).
 - **Scoring — bull target:** Per dart: **0**, **5** (outer bull), or **15** (bullseye).
 - **Totals:** Running **game score** per player; full **score table** visible during play.
 - **Statistics for ranking ties:** On wedge rounds only, the app counts **triples**, **doubles**, and **singles** (multipliers **3 / 2 / 1** on the target). Bull rounds do **not** add to these counts.
-- **Between rounds:** After **every** player has **confirmed** a full turn, the app advances automatically — new random target (wedge or bull), same fixed throwing order. No separate “start round” control.
+- **Between rounds:** After **every** player has **confirmed** a full turn, the app advances automatically — next round’s target (random wedge on **1–6**, bull on **7**), same fixed throwing order. No separate “start round” control.
 
 ## End of game and standings
 

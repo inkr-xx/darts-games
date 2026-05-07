@@ -46,6 +46,7 @@ Clears the saved session (`sessionStorage` game key), resets client state, retur
 ### random-sector
 
 - **Legacy sessions:** On load, discard corrupted or obsolete saves (e.g. old tie-break phase, round **> 7**) and show setup.
+- **Targets:** Rounds **1–6** — uniform random wedge **1–20**. Round **7** — **bull** only. Older saves with bull on rounds 1–6 are corrected on load when possible.
 
 ### follow-sector
 

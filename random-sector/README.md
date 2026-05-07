@@ -1,6 +1,6 @@
 # random-sector — how to play
 
-A seven-round scorekeeper: each round everyone throws at the **same** random target — either a **numbered wedge (1–20)** or the **bull**. Throwing order stays the same all game (the order you entered at setup).
+A seven-round scorekeeper: each round everyone throws at the **same** target. Rounds **1–6** use a **random wedge 1–20**; round **7** is always the **bull**. Throwing order stays the same all game (the order you entered at setup).
 
 ---
 
@@ -16,9 +16,9 @@ A seven-round scorekeeper: each round everyone throws at the **same** random tar
 
 Each round:
 
-1. The app picks a **new random target**: one of the wedges **1–20**, **or** the **bull** (roughly a **1 in 21** shot at bull each round).
+1. The app sets the round target: **random wedge 1–20** on rounds **1–6**, **bull** on round **7**.
 2. Everyone throws **three darts** in setup order, records **Miss / Single / Double / Triple** on a wedge target, or **Miss / 5 / 15** when the target is **bull**, then **Confirm turn**.
-3. When the last player confirms, the **next round** starts automatically with a **new** random target.
+3. When the last player confirms, the **next round** starts automatically with the **next** target.
 
 ### Scoring (game points — not full dartboard face value)
 
