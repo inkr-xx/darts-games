@@ -1,0 +1,202 @@
+/* Mobile-first: comfortable tap targets and readable scores */
+
+.btn-lg.throw-btn,
+.btn-lg[data-mult],
+.tb-mult-btn,
+.tb-bull-btn {
+  min-height: 3rem;
+}
+
+.table-primary th,
+.table-primary td {
+  font-weight: 600;
+}
+
+.round-banner .card-body {
+  font-size: 0.95rem;
+}
+
+/* Sector target dartboard */
+.dartboard-holder {
+  max-width: min(100%, 320px);
+}
+
+.dartboard-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
+}
+
+.dart-sector {
+  stroke: #3e2723;
+  stroke-width: 0.6;
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+
+.dart-sector--inactive-even {
+  fill: #ece7dc;
+}
+
+.dart-sector--inactive-odd {
+  fill: #2d2a26;
+}
+
+.dart-sector--target {
+  fill: #ffc107 !important;
+  stroke: #e65100 !important;
+  stroke-width: 3 !important;
+  filter: url(#dart-glow);
+}
+
+#dartboard-wedge-label {
+  font-size: clamp(28px, 9vw, 42px);
+}
+
+.round-target-heading {
+  letter-spacing: 0.06em;
+}
+
+/* Final round: full board visible, bull emphasized */
+.dartboard-svg--final-round .dart-sector {
+  opacity: 0.42;
+}
+
+.dartboard-svg--final-round .bull-ring-outer {
+  fill: #256329 !important;
+  stroke: #ffc107 !important;
+  stroke-width: 3 !important;
+  filter: url(#dart-glow);
+}
+
+.dartboard-svg--final-round .bull-ring-inner {
+  fill: #d32f2f !important;
+  stroke: #fff9c4 !important;
+  stroke-width: 2.5 !important;
+  filter: url(#dart-glow);
+}
+
+#sector-board-card.board-final-round {
+  border-color: #c62828 !important;
+}
+
+@media (min-width: 768px) {
+  #screen-game .card {
+    max-width: 42rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Final standings — podium (top 3) */
+.standings-podium-wrap {
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.podium-visual {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.75rem 0.25rem 0;
+}
+
+@media (min-width: 400px) {
+  .podium-visual {
+    gap: 0.75rem;
+  }
+}
+
+.podium-column {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 9.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.podium-column--1 {
+  order: 2;
+}
+.podium-column--2 {
+  order: 1;
+}
+.podium-column--3 {
+  order: 3;
+}
+
+.podium-top {
+  font-size: 0.85rem;
+  line-height: 1.25;
+  margin-bottom: 0.35rem;
+  min-height: 4.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.podium-emoji {
+  font-size: 1.75rem;
+  line-height: 1;
+  margin-bottom: 0.2rem;
+}
+
+.podium-names {
+  font-weight: 700;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.podium-names.podium-names--empty {
+  font-weight: 400;
+  color: #9e9e9e;
+}
+
+.podium-score-pill {
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-top: 0.15rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.podium-plinth {
+  width: 100%;
+  border-radius: 10px 10px 4px 4px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  padding: 0.5rem 0.35rem 0.65rem;
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: rgba(0, 0, 0, 0.35);
+  line-height: 1;
+}
+
+.podium-column--1 .podium-plinth {
+  min-height: 7.5rem;
+  background: linear-gradient(180deg, #ffe082 0%, #ffb300 55%, #ff8f00 100%);
+}
+
+.podium-column--2 .podium-plinth {
+  min-height: 5.25rem;
+  background: linear-gradient(180deg, #f5f5f5 0%, #bdbdbd 55%, #9e9e9e 100%);
+}
+
+.podium-column--3 .podium-plinth {
+  min-height: 3.75rem;
+  background: linear-gradient(180deg, #d7a574 0%, #a1887f 45%, #6d4c41 100%);
+}
+
+.podium-column.podium-column--empty .podium-plinth {
+  opacity: 0.45;
+}
+
+.letter-spacing-tight {
+  letter-spacing: 0.06em;
+}
