@@ -1,50 +1,42 @@
-# Darts scorekeeper — requirements (as implemented)
+# random-sector — requirements (as implemented)
 
 ## Game logic
 
-- **Players:** 1..n. **Setup order** is the **fixed turn order** for **rounds 1–7** and is used to break ties in ordering when scores are equal.
-- **Board:** Sectors **1..20** (single / double / triple) and **bull** — outer **25**, inner **50**, **miss 0** in the final round.
-- **Structure:** **7 sector rounds** + **1 final (bull) round** = **8 rounds** in order.
-  - **Rounds 1–7:** At the **start of each round**, a **random target sector 1..20** is chosen; **everyone** uses that sector for the whole round.
-  - **Round 8:** **Bull only** — each throw is **miss (0)**, **25**, or **50**.
-- **Turn:** Each player has **three darts** per turn.
-  - **Rounds 1–7:** Points per dart = **sector × multiplier**, where multiplier is **0** (miss), **1** (single), **2** (double), **3** (triple).
-  - **Example:** Target sector **3** → per dart **0**, **3**, **6**, or **9**.
-  - **Round 8:** Sum of **0 / 25 / 50** per dart.
-- **Totals:** Each player has a **running total**; **all players’ totals stay visible** during play (score table).
-- **Order of play**
-  - **Rounds 1–7:** Same **fixed** order every round.
-  - **Round 8:** Order by **total score descending**; when scores tie, order follows **fixed setup order** among tied players.
-- **Between rounds:** When every player has **confirmed** a full turn for the current round, the app **advances automatically** — new random sector (rounds 1–7) or final round (after round 7). There is no separate “start round” control.
-
-## Tie-break (first place only)
-
-- Runs **only** if **two or more players share the highest total** immediately **after round 8** is complete (for everyone).
-- **Only those co-leaders** participate; **same rules as rounds 1–7**: one **random target sector 1..20** per **wave** (shared by all co-leaders in that wave), **three darts** per turn, **miss / single / double / triple**, **confirm** after the turn.
-- **Turn order** among co-leaders: **fixed setup order** (among tied players only).
-- After **each** co-leader has finished a turn in the wave: if **exactly one** player has the highest score → **game over**; else if **fewer than two** share the top score (only one leader) → **game over**; else **another wave** with a **new random sector** and updated co-leader set.
-- **No bull** scoring in tie-break. **Other ranks** (2nd, 3rd, …) are **never** tie-broken with extra throws.
+- **Players:** 1..n. **Setup order** is the **fixed turn order** for **every round** (rounds **1–7**).
+- **Board:** Sectors **1..20** (miss / single / double / triple on the **round target**) and **bull** (miss / **5** / **15** — outer bull / bullseye by convention in the UI).
+- **Structure:** **7 rounds** only. There is **no** eighth round and **no** extra tie-break **play**.
+- **Random target each round:** Before each round, the app picks **uniformly** among **21** outcomes: wedges **1–20** **or** **bull** (each wedge has the same chance as any other single outcome; bull is one of the 21).
+- **Turn:** Each player has **three darts** per turn, then **Confirm turn**.
+- **Scoring — wedge target (1–20):** Points per dart are **not** face value; they are **multiplier points only**:
+  - Miss **0**, single **1**, double **2**, triple **3** (per dart, summed for the turn).
+- **Scoring — bull target:** Per dart: **0**, **5** (outer bull), or **15** (bullseye).
+- **Totals:** Running **game score** per player; full **score table** visible during play.
+- **Statistics for ranking ties:** On wedge rounds only, the app counts **triples**, **doubles**, and **singles** (multipliers **3 / 2 / 1** on the target). Bull rounds do **not** add to these counts.
+- **Between rounds:** After **every** player has **confirmed** a full turn, the app advances automatically — new random target (wedge or bull), same fixed throwing order. No separate “start round” control.
 
 ## End of game and standings
 
-- When the main game ends **without** a first-place tie → **standings** immediately.
-- When a **first-place tie** exists after round 8 → **tie-break** on the **same play screen** (see UI); when tie-break resolves → **standings**.
-- **Standings:** **Competition ranking** (tied players share the same rank; next rank may skip). **Podium** for **1st / 2nd / 3rd** (names + totals; multiple names on one step if tied). **“Other places”** lists everyone ranked **4th and below** in a simple list.
+- After **round 7** completes for everyone, the game ends — **no** throw-off tie-break.
+- **Ordering:** Sort by **total score** descending; if tied, by **most triples**, then **most doubles**, then **most singles**; if still tied, **same rank** (shared podium step / shared place).
+- **Standings:** Competition-style ranks (ties share rank; next rank may skip). **Podium** for **1st / 2nd / 3rd**; **“Other places”** for **4th** and below.
 
 ## Technical
 
-- **Stack:** Static **HTML**, **JavaScript**, **Bootstrap** and **jQuery** (CDN). No build step.
-- **Layout:** **Mobile-first**; optional max width on larger screens for main cards.
-- **Language:** **English** UI.
+- **Stack:** Static **HTML**, **JavaScript**, **Bootstrap**, **jQuery** (CDN). No build step.
+- **Styles:** Shared **`../assets/darts-shared.css`** plus **`styles.css`** in this folder.
+- **Layout:** Mobile-first; optional max width on larger screens for setup / cards (shared CSS).
+- **Language:** English UI.
+- **Navigation:** **Home** links to **`../index.html`** (selector page).
 - **Persistence**
-  - **`localStorage`:** Last-used **player names** when a game is started; setup offers **Use last names**.
-  - **`sessionStorage`:** Full **in-progress game** state so **refresh** keeps the session; closing the tab/window typically clears it.
-- **Abandon game** (during play or tie-break): Clears the saved session and returns to setup.
+  - **`localStorage`:** Last-used player names; setup offers **Use last names**.
+  - **`sessionStorage`:** In-progress game; refresh keeps the session; closing the tab usually clears it.
+- **Abandon game:** Clears session and returns to setup.
+- **Legacy saves:** Old sessions with tie-break or round **> 7** are discarded on load.
 
-## UI / behaviour (implementation detail)
+## UI / behaviour
 
-- **Setup:** Add/remove name rows; **Start game** requires at least one named player.
-- **Play screen** shows: round info and target (sector or bull), **SVG dartboard** — **highlighted sector** for sector rounds and tie-break; **bull emphasized / sectors dimmed** for round 8.
-- **Throws:** Large buttons per dart; values stay **editable until Confirm**.
-- **Confirm turn:** Disabled until **all three** darts are set. Button label shows a **running partial total** while choosing; when complete, **Confirm turn — N pts**. No per-dart points line.
-- **Tie-break:** Same layout as normal play plus a **tie-break banner** at the top; not a separate screen.
+- **Setup:** Add/remove name rows; **Start game** needs at least one name.
+- **Play screen:** Round **progress bar** (ticks **1–7**); **phase hint** line (often empty); **dartboard** card with compact board + **large target figure** (wedge number or **Bull**); **current player** card with throws; **Scores** table.
+- **Wedge rounds:** Miss / Single / Double / Triple per dart; **Confirm turn** shows running sum of **game points** for the turn (1/2/3 style).
+- **Bull rounds:** Miss / **5** / **15** per dart; board uses **bull-emphasis** styling (same visual language as shared CSS “final round” bull highlight).
+- **Confirm turn:** Disabled until all three darts are chosen; label **Confirm turn — N pts** when complete.

@@ -9,11 +9,10 @@
     players: [],
     fixedPlayerIds: [],
     round: 1,
-    targetSector: null,
+    roundTarget: null,
     roundPlayerIds: [],
     turnIndex: 0,
     pending: null,
-    tiebreak: null,
   };
 
   function saveGame() {
@@ -59,6 +58,13 @@
 
   function randomInt(min, max) {
     return min + Math.floor(Math.random() * (max - min + 1));
+  }
+
+  /** Uniform random: wedges 1–20 or bull (21st outcome). */
+  function randomRoundTarget() {
+    var pick = randomInt(1, 21);
+    if (pick === 21) return { k: 'bull' };
+    return { k: 'wedge', n: pick };
   }
 
   /** Clockwise from top — standard dartboard sector numbers */
@@ -132,13 +138,6 @@
     dartboardSectorsBuilt = true;
   }
 
-  function sectorIndexForNumber(n) {
-    for (var i = 0; i < DART_SECTOR_ORDER.length; i++) {
-      if (DART_SECTOR_ORDER[i] === n) return i;
-    }
-    return -1;
-  }
-
   function resetAllSectorWedgesNeutral() {
     ensureDartboardSectors();
     $('#dartboard-sectors path').each(function () {
@@ -151,16 +150,32 @@
     });
   }
 
-  function updateDartboardFinalRound() {
-    resetAllSectorWedgesNeutral();
-    $('#dartboard-wedge-label').css('visibility', 'hidden');
-    $('#dartboard-svg').addClass('dartboard-svg--final-round');
-    $('#dartboard-aria-title').text('Dartboard — final round, bull only');
-    $('#dartboard-svg').attr('aria-label', 'Dartboard; aim at the bull — outer ring 25, inner bull 50');
+  function updateBoardTargetDisplay(target) {
+    var $f = $('#board-target-figure');
+    if (!$f.length) return;
+    if (!target) {
+      $f
+        .addClass('d-none')
+        .text('')
+        .removeClass('board-target-figure--bull')
+        .attr('title', '')
+        .attr('aria-hidden', 'true');
+      return;
+    }
+    $f.removeClass('d-none').attr('aria-hidden', 'false');
+    if (target.k === 'bull') {
+      $f.text('Bull').addClass('board-target-figure--bull').attr('title', 'Bull target');
+    } else {
+      $f
+        .text(String(target.n))
+        .removeClass('board-target-figure--bull')
+        .attr('title', 'Sector ' + target.n);
+    }
   }
 
   function updateSectorBoardHighlight(sector) {
     $('#dartboard-svg').removeClass('dartboard-svg--final-round');
+    $('#sector-board-card').removeClass('board-final-round');
     ensureDartboardSectors();
     $('#dartboard-sectors path').each(function () {
       var $p = $(this);
@@ -177,28 +192,58 @@
       }
     });
 
-    var wi = sectorIndexForNumber(sector);
-    var $label = $('#dartboard-wedge-label');
-    if (wi < 0) {
-      $label.css('visibility', 'hidden');
-      return;
-    }
-    var midDeg = -90 + wi * 18 + 9;
-    var midRad = (midDeg * Math.PI) / 180;
-    var rLabel = 78;
-    var lx = 100 + rLabel * Math.cos(midRad);
-    var ly = 100 + rLabel * Math.sin(midRad);
-    $label.text(String(sector));
-    $label.attr('x', lx);
-    $label.attr('y', ly);
-    $label.css('visibility', 'visible');
+    updateBoardTargetDisplay({ k: 'wedge', n: sector });
 
     $('#dartboard-svg').attr('aria-label', 'Dartboard; target sector ' + sector);
     $('#dartboard-aria-title').text('Dartboard — target sector ' + sector);
   }
 
+  function updateBullRoundBoard() {
+    resetAllSectorWedgesNeutral();
+    $('#dartboard-svg').addClass('dartboard-svg--final-round');
+    $('#sector-board-card').addClass('board-final-round');
+    $('#dartboard-aria-title').text('Dartboard — bull is the target');
+    $('#dartboard-svg').attr(
+      'aria-label',
+      'Dartboard; outer bull 5 points, bullseye 15 points'
+    );
+    updateBoardTargetDisplay({ k: 'bull' });
+  }
+
   function setSectorBoardVisible(show) {
     $('#sector-board-card').toggleClass('d-none', !show);
+  }
+
+  function updateRoundProgress() {
+    var $fill = $('#round-progress-fill');
+    var $host = $('#round-progress');
+    var $ticks = $('#round-progress-wrap .round-progress-labels span');
+    if (!$fill.length || !$host.length) return;
+
+    $ticks.removeClass('fw-bold text-primary');
+
+    $fill.removeClass('bg-warning').addClass('bg-primary');
+    var r = Math.max(1, Math.min(7, Number(state.round) || 1));
+    var pct = (r / 7) * 100;
+    $fill.css('width', pct + '%');
+    $host.attr({
+      'aria-valuenow': String(r),
+      'aria-valuetext': 'Round ' + r + ' of 7',
+    });
+    if ($ticks.length >= r) $ticks.eq(r - 1).addClass('fw-bold text-primary');
+  }
+
+  function setCurrentTurnHeader(displayName, actionTail) {
+    var $name = $('#current-player-name');
+    var $act = $('#current-player-action');
+    if (!$name.length) return;
+    if (!displayName || displayName === '—') {
+      $name.text('—');
+      $act.text('');
+      return;
+    }
+    $name.text(displayName);
+    $act.text(actionTail || '');
   }
 
   function playerById(id) {
@@ -208,61 +253,36 @@
     return null;
   }
 
-  function sortIdsForFinalRound() {
-    var fixed = state.fixedPlayerIds;
-    var list = state.players.map(function (p) {
-      return { id: p.id, score: p.score };
-    });
-    list.sort(function (a, b) {
-      if (b.score !== a.score) return b.score - a.score;
-      return fixed.indexOf(a.id) - fixed.indexOf(b.id);
-    });
-    return list.map(function (x) { return x.id; });
-  }
-
-  function sortCoLeaderIdsByFixedOrder(leaderIds) {
-    var fixed = state.fixedPlayerIds;
-    return leaderIds.slice().sort(function (a, b) {
-      return fixed.indexOf(a) - fixed.indexOf(b);
-    });
-  }
-
-  function getMaxScore() {
-    var m = -Infinity;
-    state.players.forEach(function (p) {
-      if (p.score > m) m = p.score;
-    });
-    return m;
-  }
-
-  function getCoLeaderIds() {
-    var max = getMaxScore();
-    return state.players.filter(function (p) {
-      return p.score === max;
-    }).map(function (p) {
-      return p.id;
-    });
-  }
-
-  function uniqueWinnerExists() {
-    var max = getMaxScore();
-    var n = state.players.filter(function (p) {
-      return p.score === max;
-    }).length;
-    return n === 1;
-  }
-
-  function sectorTurnPoints(targetSector, mults) {
-    var t = targetSector;
+  /** Wedge rounds: single = 1 pt, double = 2, triple = 3 (miss = 0). */
+  function wedgeMultPoints(mults) {
     return mults.reduce(function (sum, m) {
-      return sum + t * m;
+      return sum + (typeof m === 'number' ? m : 0);
     }, 0);
   }
 
-  function bullTurnPoints(vals) {
-    return vals.reduce(function (a, b) {
-      return a + b;
+  /** Bull round: outer bull = 5 pts, bullseye = 15 pts. */
+  function bullValsPoints(vals) {
+    return vals.reduce(function (sum, v) {
+      return sum + (typeof v === 'number' ? v : 0);
     }, 0);
+  }
+
+  function applySectorMultStats(p, mults) {
+    if (!p || !mults) return;
+    for (var i = 0; i < mults.length; i++) {
+      var m = mults[i];
+      if (m === 3) p.triples += 1;
+      else if (m === 2) p.doubles += 1;
+      else if (m === 1) p.singles += 1;
+    }
+  }
+
+  function compareStanding(a, b) {
+    if (b.score !== a.score) return b.score - a.score;
+    if (b.triples !== a.triples) return b.triples - a.triples;
+    if (b.doubles !== a.doubles) return b.doubles - a.doubles;
+    if (b.singles !== a.singles) return b.singles - a.singles;
+    return state.fixedPlayerIds.indexOf(a.id) - state.fixedPlayerIds.indexOf(b.id);
   }
 
   function showScreen(id) {
@@ -308,18 +328,20 @@
     names.forEach(function (name, i) {
       var id = 'p_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 7);
       fixed.push(id);
-      players.push({ id: id, name: name, score: 0 });
+      players.push({ id: id, name: name, score: 0, triples: 0, doubles: 0, singles: 0 });
     });
 
     state.phase = 'playing';
     state.players = players;
     state.fixedPlayerIds = fixed;
     state.round = 1;
-    state.targetSector = randomInt(1, 20);
+    state.roundTarget = randomRoundTarget();
     state.roundPlayerIds = fixed.slice();
     state.turnIndex = 0;
-    state.pending = { type: 'sector', mults: [null, null, null] };
-    state.tiebreak = null;
+    state.pending =
+      state.roundTarget.k === 'bull'
+        ? { type: 'bull', vals: [null, null, null] }
+        : { type: 'sector', mults: [null, null, null] };
 
     saveGame();
     renderGame();
@@ -328,19 +350,13 @@
 
   function beginRound(nextRound) {
     state.round = nextRound;
-    if (nextRound <= 7) {
-      state.targetSector = randomInt(1, 20);
-      state.roundPlayerIds = state.fixedPlayerIds.slice();
-    } else if (nextRound === 8) {
-      state.targetSector = null;
-      state.roundPlayerIds = sortIdsForFinalRound();
-    }
+    state.roundTarget = randomRoundTarget();
+    state.roundPlayerIds = state.fixedPlayerIds.slice();
     state.turnIndex = 0;
-    if (nextRound <= 7) {
-      state.pending = { type: 'sector', mults: [null, null, null] };
-    } else {
-      state.pending = { type: 'bull', vals: [null, null, null] };
-    }
+    state.pending =
+      state.roundTarget.k === 'bull'
+        ? { type: 'bull', vals: [null, null, null] }
+        : { type: 'sector', mults: [null, null, null] };
   }
 
   function afterRoundComplete() {
@@ -349,57 +365,17 @@
       beginRound(r + 1);
       return;
     }
-    if (r === 7) {
-      beginRound(8);
-      return;
-    }
-    if (r === 8) {
-      finishRegularPlay();
-    }
-  }
-
-  function finishRegularPlay() {
-    if (uniqueWinnerExists()) {
-      state.phase = 'finished';
-      state.pending = null;
-      saveGame();
-      renderFinished();
-      showScreen('screen-finished');
-      return;
-    }
-    var leaders = getCoLeaderIds();
-    if (leaders.length < 2) {
-      state.phase = 'finished';
-      state.pending = null;
-      saveGame();
-      renderFinished();
-      showScreen('screen-finished');
-      return;
-    }
-    var tiePending = { type: 'sector', mults: [null, null, null] };
-    var tieOrder = sortCoLeaderIdsByFixedOrder(leaders);
-    state.phase = 'tiebreak';
-    state.tiebreak = {
-      targetSector: randomInt(1, 20),
-      orderIds: tieOrder,
-      turnIndex: 0,
-      pending: tiePending,
-    };
-    state.pending = tiePending;
-    state.targetSector = state.tiebreak.targetSector;
-    state.roundPlayerIds = tieOrder;
-    state.turnIndex = 0;
+    state.phase = 'finished';
+    state.pending = null;
     saveGame();
-    renderGame();
-    showScreen('screen-game');
+    renderFinished();
+    showScreen('screen-finished');
   }
 
   function renderScoreTable($tbody) {
     $tbody.empty();
     var curId =
-      state.phase === 'playing' || state.phase === 'tiebreak'
-        ? state.roundPlayerIds[state.turnIndex]
-        : null;
+      state.phase === 'playing' ? state.roundPlayerIds[state.turnIndex] : null;
 
     state.players.forEach(function (p) {
       var row = $('<tr></tr>');
@@ -413,66 +389,20 @@
   }
 
   function renderGame() {
-    if (state.phase === 'tiebreak' && state.tiebreak) {
-      var tb = state.tiebreak;
-      state.targetSector = tb.targetSector;
-      state.roundPlayerIds = tb.orderIds;
-      state.turnIndex = tb.turnIndex;
-      state.pending = tb.pending;
-    }
-
-    if (state.phase === 'tiebreak') {
-      $('#tiebreak-banner').removeClass('d-none');
-      $('#game-round-label').text('Tie-break');
-      $('#game-target-wrap').removeClass('d-none');
-      $('#game-target-label').text('Sector ' + state.targetSector);
-      $('#game-phase-hint').text(
-        'Same rules as rounds 1–7: one random sector per wave; only tied leaders take turns (order below).'
-      );
-      $('#dartboard-round-heading').text('Tie-break — hit this sector');
-      $('#sector-board-card').removeClass('board-final-round');
-      setSectorBoardVisible(true);
-      updateSectorBoardHighlight(state.targetSector);
-      renderScoreTable($('#score-tbody'));
-      var pidTb = state.roundPlayerIds[state.turnIndex];
-      var pTb = playerById(pidTb);
-      $('#current-player-label').text(pTb ? pTb.name + ' — set throws' : '—');
-      renderThrowsPanel();
-      updateConfirmEnabled();
-      return;
-    }
-
-    $('#tiebreak-banner').addClass('d-none');
-
-    var r = state.round;
-    $('#game-round-label').text(r + ' / 8');
-    if (r <= 7) {
-      $('#game-target-wrap').removeClass('d-none');
-      $('#game-target-label').text('Sector ' + state.targetSector);
-      $('#game-phase-hint').text(
-        'Same target for everyone this round. Record single / double / triple on that sector (real scores).'
-      );
-      $('#dartboard-round-heading').text('Round target — hit this sector');
-      $('#sector-board-card').removeClass('board-final-round');
-      setSectorBoardVisible(true);
-      updateSectorBoardHighlight(state.targetSector);
+    updateRoundProgress();
+    $('#game-phase-hint').text('');
+    setSectorBoardVisible(true);
+    if (state.roundTarget.k === 'bull') {
+      updateBullRoundBoard();
     } else {
-      $('#game-target-wrap').removeClass('d-none');
-      $('#game-target-label').text('Bull only');
-      $('#game-phase-hint').text(
-        'Final round — throws are miss (0), outer bull (25), or inner bull (50). Turn order: highest score first.'
-      );
-      $('#dartboard-round-heading').text('Final round — aim at the bull');
-      $('#sector-board-card').addClass('board-final-round');
-      setSectorBoardVisible(true);
-      updateDartboardFinalRound();
+      updateSectorBoardHighlight(state.roundTarget.n);
     }
 
     renderScoreTable($('#score-tbody'));
 
     var pid = state.roundPlayerIds[state.turnIndex];
     var p = playerById(pid);
-    $('#current-player-label').text(p ? p.name + ' — set throws' : '—');
+    setCurrentTurnHeader(p ? p.name : null, p ? ' — set throws' : '');
 
     renderThrowsPanel();
     updateConfirmEnabled();
@@ -517,8 +447,8 @@
           var btnRow = $('<div class="d-flex flex-wrap gap-2"></div>');
           [
             { v: 0, label: 'Miss', cls: 'btn-outline-secondary' },
-            { v: 25, label: '25', cls: 'btn-outline-success' },
-            { v: 50, label: '50', cls: 'btn-outline-success' },
+            { v: 5, label: '5', cls: 'btn-outline-success' },
+            { v: 15, label: '15', cls: 'btn-outline-success' },
           ].forEach(function (L) {
             var active = sel === L.v;
             var b = $('<button type="button" class="btn btn-lg throw-btn"></button>')
@@ -538,7 +468,7 @@
   /** All three darts must have an explicit choice (miss counts as a choice once tapped). */
   function allTurnThrowsSelected() {
     var pen = state.pending;
-    if (!pen || (state.phase !== 'playing' && state.phase !== 'tiebreak')) return false;
+    if (!pen || state.phase !== 'playing') return false;
     if (pen.type === 'sector') {
       return (
         Array.isArray(pen.mults) &&
@@ -563,27 +493,22 @@
   function pendingTurnTotalPts() {
     if (!allTurnThrowsSelected()) return null;
     var pen = state.pending;
-    if (pen.type === 'sector') {
-      return sectorTurnPoints(state.targetSector, pen.mults);
-    }
-    if (pen.type === 'bull') {
-      return bullTurnPoints(pen.vals);
-    }
+    if (pen.type === 'sector') return wedgeMultPoints(pen.mults);
+    if (pen.type === 'bull') return bullValsPoints(pen.vals);
     return null;
   }
 
   /** Running sum of throws chosen so far; "-" when none chosen yet. */
   function turnScoreDisplay() {
     var pen = state.pending;
-    if (!pen || (state.phase !== 'playing' && state.phase !== 'tiebreak')) return '-';
+    if (!pen || state.phase !== 'playing') return '-';
     if (pen.type === 'sector') {
-      var t = state.targetSector;
       var sum = 0;
       var any = false;
       for (var i = 0; i < 3; i++) {
         var m = pen.mults[i];
         if (m !== null && m !== undefined) {
-          sum += t * m;
+          sum += m;
           any = true;
         }
       }
@@ -618,66 +543,7 @@
     }
   }
 
-  function confirmTiebreakTurn() {
-    if (state.phase !== 'tiebreak' || !state.tiebreak) return;
-    if (!allTurnThrowsSelected()) return;
-    var tb = state.tiebreak;
-    var pen = state.pending;
-    var pid = state.roundPlayerIds[state.turnIndex];
-    var p = playerById(pid);
-    if (!p || !pen || pen.type !== 'sector') return;
-
-    p.score += sectorTurnPoints(state.targetSector, pen.mults);
-
-    state.turnIndex += 1;
-    tb.turnIndex = state.turnIndex;
-
-    if (state.turnIndex >= state.roundPlayerIds.length) {
-      if (uniqueWinnerExists()) {
-        state.phase = 'finished';
-        state.tiebreak = null;
-        state.pending = null;
-        saveGame();
-        renderFinished();
-        showScreen('screen-finished');
-        return;
-      }
-      var leaders = getCoLeaderIds();
-      if (leaders.length < 2) {
-        state.phase = 'finished';
-        state.tiebreak = null;
-        state.pending = null;
-        saveGame();
-        renderFinished();
-        showScreen('screen-finished');
-        return;
-      }
-      var nextPending = { type: 'sector', mults: [null, null, null] };
-      tb.orderIds = sortCoLeaderIdsByFixedOrder(leaders);
-      tb.targetSector = randomInt(1, 20);
-      tb.turnIndex = 0;
-      tb.pending = nextPending;
-      state.pending = nextPending;
-      state.targetSector = tb.targetSector;
-      state.roundPlayerIds = tb.orderIds;
-      state.turnIndex = 0;
-      saveGame();
-      renderGame();
-      return;
-    }
-
-    var nextP = { type: 'sector', mults: [null, null, null] };
-    state.pending = nextP;
-    tb.pending = nextP;
-    saveGame();
-    renderGame();
-  }
-
   function confirmTurn() {
-    if (state.phase === 'tiebreak') {
-      confirmTiebreakTurn();
-      return;
-    }
     if (state.phase !== 'playing') return;
     if (!allTurnThrowsSelected()) return;
     var pen = state.pending;
@@ -685,13 +551,14 @@
     var p = playerById(pid);
     if (!p || !pen) return;
 
-    var add = 0;
     if (pen.type === 'sector') {
-      add = sectorTurnPoints(state.targetSector, pen.mults);
+      p.score += wedgeMultPoints(pen.mults);
+      applySectorMultStats(p, pen.mults);
     } else if (pen.type === 'bull') {
-      add = bullTurnPoints(pen.vals);
+      p.score += bullValsPoints(pen.vals);
+    } else {
+      return;
     }
-    p.score += add;
 
     state.turnIndex += 1;
     if (state.turnIndex >= state.roundPlayerIds.length) {
@@ -703,10 +570,10 @@
       return;
     }
 
-    if (state.round <= 7) {
-      state.pending = { type: 'sector', mults: [null, null, null] };
-    } else {
+    if (state.roundTarget.k === 'bull') {
       state.pending = { type: 'bull', vals: [null, null, null] };
+    } else {
+      state.pending = { type: 'sector', mults: [null, null, null] };
     }
     saveGame();
     renderGame();
@@ -725,22 +592,41 @@
   function renderFinished() {
     var sorted = state.players
       .map(function (p) {
-        return { id: p.id, name: p.name, score: p.score };
+        return {
+          id: p.id,
+          name: p.name,
+          score: p.score,
+          triples: typeof p.triples === 'number' ? p.triples : 0,
+          doubles: typeof p.doubles === 'number' ? p.doubles : 0,
+          singles: typeof p.singles === 'number' ? p.singles : 0,
+        };
       })
-      .sort(function (a, b) {
-        if (b.score !== a.score) return b.score - a.score;
-        return state.fixedPlayerIds.indexOf(a.id) - state.fixedPlayerIds.indexOf(b.id);
-      });
+      .sort(compareStanding);
 
     var rowsWithRank = [];
     var displayRank = 0;
-    var prevScore = null;
+    var prevKey = null;
     sorted.forEach(function (row, idx) {
-      if (prevScore === null || row.score !== prevScore) {
+      var key =
+        row.score +
+        '|' +
+        row.triples +
+        '|' +
+        row.doubles +
+        '|' +
+        row.singles;
+      if (prevKey === null || key !== prevKey) {
         displayRank = idx + 1;
       }
-      prevScore = row.score;
-      rowsWithRank.push({ rank: displayRank, name: row.name, score: row.score });
+      prevKey = key;
+      rowsWithRank.push({
+        rank: displayRank,
+        name: row.name,
+        score: row.score,
+        triples: row.triples,
+        doubles: row.doubles,
+        singles: row.singles,
+      });
     });
 
     var byRank = {};
@@ -800,36 +686,44 @@
   function restoreOrSetup() {
     var saved = loadGame();
     if (saved && saved.phase && saved.players && saved.players.length) {
-      state = saved;
-      if (!state.pending && state.phase === 'playing') {
-        if (state.round <= 7) {
-          state.pending = { type: 'sector', mults: [null, null, null] };
-        } else {
-          state.pending = { type: 'bull', vals: [null, null, null] };
+      if (
+        saved.phase === 'tiebreak' ||
+        saved.round > 7 ||
+        (saved.phase === 'playing' && saved.round > 7)
+      ) {
+        clearGameStorage();
+      } else {
+        state = saved;
+        if (state.tiebreak !== undefined) delete state.tiebreak;
+        if (!state.roundTarget && typeof state.targetSector === 'number') {
+          state.roundTarget = { k: 'wedge', n: state.targetSector };
         }
-      }
-      if (state.phase === 'playing') {
-        renderGame();
-        showScreen('screen-game');
-        return;
-      }
-      if (state.phase === 'tiebreak') {
-        if (!state.tiebreak || !state.tiebreak.pending || state.tiebreak.pending.type !== 'sector') {
-          clearGameStorage();
-        } else {
-          state.pending = state.tiebreak.pending;
-          state.targetSector = state.tiebreak.targetSector;
-          state.roundPlayerIds = state.tiebreak.orderIds;
-          state.turnIndex = state.tiebreak.turnIndex;
+        if (state.targetSector !== undefined) delete state.targetSector;
+        if (!state.roundTarget) {
+          state.roundTarget = { k: 'wedge', n: randomInt(1, 20) };
+        }
+        state.players.forEach(function (p) {
+          if (typeof p.triples !== 'number') p.triples = 0;
+          if (typeof p.doubles !== 'number') p.doubles = 0;
+          if (typeof p.singles !== 'number') p.singles = 0;
+        });
+        if (!state.pending && state.phase === 'playing') {
+          if (state.roundTarget && state.roundTarget.k === 'bull') {
+            state.pending = { type: 'bull', vals: [null, null, null] };
+          } else {
+            state.pending = { type: 'sector', mults: [null, null, null] };
+          }
+        }
+        if (state.phase === 'playing') {
           renderGame();
           showScreen('screen-game');
           return;
         }
-      }
-      if (state.phase === 'finished') {
-        renderFinished();
-        showScreen('screen-finished');
-        return;
+        if (state.phase === 'finished') {
+          renderFinished();
+          showScreen('screen-finished');
+          return;
+        }
       }
     }
     renderSetupPlayers(loadLastNames().length ? loadLastNames() : ['Player 1', 'Player 2']);
@@ -844,11 +738,10 @@
       players: [],
       fixedPlayerIds: [],
       round: 1,
-      targetSector: null,
+      roundTarget: null,
       roundPlayerIds: [],
       turnIndex: 0,
       pending: null,
-      tiebreak: null,
     };
     renderSetupPlayers(loadLastNames().length ? loadLastNames() : ['Player 1', 'Player 2']);
     showScreen('screen-setup');
@@ -890,7 +783,8 @@
     $('#btn-start-game').on('click', startGameFromSetup);
 
     $(document).on('click', '.throw-btn', function () {
-      if (state.phase !== 'playing' && state.phase !== 'tiebreak') return;
+      if (state.phase !== 'playing') return;
+      if ($(this).attr('data-bull-idx') !== undefined) return;
       var idx = Number($(this).attr('data-throw-idx'));
       var m = Number($(this).attr('data-mult'));
       if (state.pending && state.pending.type === 'sector') {
@@ -903,14 +797,13 @@
 
     $(document).on('click', '[data-bull-idx]', function () {
       if (state.phase !== 'playing') return;
+      if (!state.pending || state.pending.type !== 'bull') return;
       var idx = Number($(this).attr('data-bull-idx'));
       var v = Number($(this).attr('data-bull-val'));
-      if (state.pending && state.pending.type === 'bull') {
-        state.pending.vals[idx] = v;
-        saveGame();
-        renderThrowsPanel();
-        updateConfirmEnabled();
-      }
+      state.pending.vals[idx] = v;
+      saveGame();
+      renderThrowsPanel();
+      updateConfirmEnabled();
     });
 
     $('#btn-confirm-turn').on('click', confirmTurn);
@@ -924,11 +817,10 @@
         players: [],
         fixedPlayerIds: [],
         round: 1,
-        targetSector: null,
+        roundTarget: null,
         roundPlayerIds: [],
         turnIndex: 0,
         pending: null,
-        tiebreak: null,
       };
       renderSetupPlayers(loadLastNames().length ? loadLastNames() : ['Player 1', 'Player 2']);
       showScreen('screen-setup');

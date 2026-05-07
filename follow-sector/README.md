@@ -9,6 +9,7 @@ This is a scorekeeper for a **501-style mental game**: you track what would have
 1. Enter each player’s name (you need at least one player).
 2. Tap **Start game**. Turn order for **round 1** is **random**.
 3. After each round, **who goes first next round** changes: players are ordered by **lowest total score first**. If two players are tied, order among them is **random**.
+4. Use **Home** to return to the game picker, or **Abandon game** to end the session and go back to setup.
 
 ---
 
@@ -60,10 +61,11 @@ If **two or more players are tied for first place** after round 7:
 
 ## Tips for using the screen
 
-- **Progress bar** — shows how far you are through the **seven rounds** (ticks **1–7**).
+- **Progress bar** — shows how far you are through the **seven rounds** (ticks **1–7**); in tie-break it shows the bar at full width with a warning style.
 - **Dartboard** — highlights the current wedge target or emphasizes bull when the target is bull.
 - **Confirm turn** — stays disabled until all three darts for that turn are chosen; the button shows a **running total** where it applies.
 - **Refresh** — your game is kept for this browser tab (**session**); closing the tab usually clears it.
+- **Home** — opens the main menu (`index.html`) that lists both games.
 - **Abandon game** — ends the session and returns to setup.
 
 Have fun — and keep the maths honest.
