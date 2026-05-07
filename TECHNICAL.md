@@ -1,6 +1,6 @@
 # Darts apps — shared technical specification
 
-Applies to **follow-sector**, **random-sector**, and **max-game** unless noted.
+Applies to **follow-sector**, **random-sector**, **max-game**, and **min-game** unless noted.
 
 ## Stack & delivery
 
@@ -15,6 +15,7 @@ Applies to **follow-sector**, **random-sector**, and **max-game** unless noted.
 | **`follow-sector/`** | `index.html`, `app.js`, `styles.css` |
 | **`random-sector/`** | `index.html`, `app.js`, `styles.css` |
 | **`max-game/`** | `index.html`, `app.js`, `styles.css` |
+| **`min-game/`** | `index.html`, `app.js`, `styles.css` |
 
 Each game page loads styles in order:
 
@@ -54,3 +55,7 @@ Clears the saved session (`sessionStorage` game key), resets client state, retur
 ### max-game
 
 - **`sessionStorage`** key **`maxGameState`** — in-progress **playing** / **finished** only (seven rounds). **`pending`** while playing is **`{ buffer: string }`** — digits typed for the **visit total** (three-dart sum); legacy saves with per-dart state are reset on load.
+
+### min-game
+
+- **`sessionStorage`** key **`minGameState`**. Same keypad **`pending`** shape as **max-game**. **Standings:** lowest cumulative score wins; an entered visit of **0** adds **60** to the running total (miss rule).
