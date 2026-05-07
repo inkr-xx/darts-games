@@ -190,6 +190,13 @@
 }
 
 @media (min-width: 768px) {
+  /* Same readable column as in-play cards */
+  #screen-setup {
+    max-width: 42rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   #screen-game .card {
     max-width: 42rem;
     margin-left: auto;
