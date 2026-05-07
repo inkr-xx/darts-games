@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Follow-sector darts</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="bg-light">
+    <header class="navbar navbar-dark bg-primary sticky-top shadow-sm py-2">
+      <div class="container-fluid px-3">
+        <span class="navbar-brand mb-0 h1 fs-5">Follow-sector darts</span>
+        <button type="button" class="btn btn-outline-light btn-sm d-none" id="btn-abandon" aria-label="Abandon game">
+          Abandon game
+        </button>
+      </div>
+    </header>
+
+    <main class="container-fluid px-3 py-3 pb-5">
+      <!-- Setup -->
+      <section id="screen-setup" class="screen">
+        <h2 class="h4 mb-3">New game</h2>
+        <p class="text-muted small mb-3">
+          Add players. Turn order for round 1 is shuffled when you start; later rounds order players by lowest score first (ties random).
+        </p>
+        <div id="setup-players" class="vstack gap-2 mb-3"></div>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button type="button" class="btn btn-outline-secondary" id="btn-add-player">Add player</button>
+          <button type="button" class="btn btn-outline-secondary" id="btn-fill-last">Use last names</button>
+        </div>
+        <button type="button" class="btn btn-primary btn-lg w-100 w-md-auto" id="btn-start-game">Start game</button>
+      </section>
+
+      <!-- Playing + tie-break -->
+      <section id="screen-game" class="screen d-none">
+        <div id="tiebreak-banner" class="alert alert-warning py-2 mb-3 d-none" role="status">
+          <strong>Tie-break</strong> — first place is tied. Random target (sector <span class="text-lowercase">or</span> bull) each wave;
+          three darts per turn; only tied leaders throw (setup order among ties).
+        </div>
+        <div class="round-banner card border-primary mb-3">
+          <div class="card-body py-2 px-3">
+            <div id="round-progress-wrap">
+              <div
+                class="progress round-progress shadow-sm"
+                id="round-progress"
+                role="progressbar"
+                aria-valuemin="1"
+                aria-valuemax="7"
+                aria-valuenow="1"
+                aria-valuetext="Round 1 of 7"
+              >
+                <div
+                  class="progress-bar round-progress-fill bg-primary"
+                  id="round-progress-fill"
+                  style="width: 14.285714286%"
+                ></div>
+              </div>
+              <div class="round-progress-labels d-flex justify-content-between small text-muted mt-1 px-0">
+                <span class="flex-fill text-center">1</span>
+                <span class="flex-fill text-center">2</span>
+                <span class="flex-fill text-center">3</span>
+                <span class="flex-fill text-center">4</span>
+                <span class="flex-fill text-center">5</span>
+                <span class="flex-fill text-center">6</span>
+                <span class="flex-fill text-center">7</span>
+              </div>
+            </div>
+            <p class="mb-0 small text-muted mt-1" id="game-phase-hint"></p>
+          </div>
+        </div>
+
+        <div id="sector-board-card" class="card border-warning shadow-sm mb-3 d-none overflow-hidden">
+          <div class="card-body py-2 px-2">
+            <div class="dartboard-target-row d-flex flex-nowrap align-items-center justify-content-center gap-2 gap-md-3">
+              <div class="dartboard-holder dartboard-holder--compact flex-shrink-0">
+              <svg
+                id="dartboard-svg"
+                class="dartboard-svg"
+                viewBox="0 0 200 200"
+                role="img"
+                aria-labelledby="dartboard-aria-title"
+              >
+                <title id="dartboard-aria-title">Dartboard</title>
+                <defs>
+                  <filter id="dart-glow" x="-40%" y="-40%" width="180%" height="180%">
+                    <feGaussianBlur stdDeviation="2" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <circle cx="100" cy="100" r="96" fill="none" stroke="#3e2723" stroke-width="2" />
+                <g id="dartboard-sectors"></g>
+                <g id="dartboard-bull-group" class="dartboard-bull-group">
+                  <circle
+                    class="bull-ring-outer"
+                    cx="100"
+                    cy="100"
+                    r="22"
+                    fill="#1b5e20"
+                    stroke="#3e2723"
+                    stroke-width="1.5"
+                  />
+                  <circle
+                    class="bull-ring-inner"
+                    cx="100"
+                    cy="100"
+                    r="10"
+                    fill="#b71c1c"
+                    stroke="#3e2723"
+                    stroke-width="1"
+                  />
+                </g>
+                <text
+                  id="dartboard-wedge-label"
+                  x="100"
+                  y="28"
+                  text-anchor="middle"
+                  dominant-baseline="middle"
+                  font-family="system-ui, -apple-system, sans-serif"
+                  font-weight="900"
+                  fill="#bf360c"
+                  stroke="#ffffff"
+                  stroke-width="1.5"
+                  paint-order="stroke fill"
+                  style="pointer-events: none; visibility: hidden"
+                >
+                  20
+                </text>
+              </svg>
+              </div>
+              <div
+                class="board-target-figure flex-shrink-0 d-none"
+                id="board-target-figure"
+                title=""
+                aria-hidden="true"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-3">
+          <div class="card-header py-3 current-player-header">
+            <span class="current-player-name" id="current-player-name">—</span>
+            <span class="current-player-action" id="current-player-action"></span>
+          </div>
+          <div class="card-body" id="throws-panel"></div>
+          <div class="card-footer bg-transparent border-top-0 pt-0 px-3 pb-3">
+            <button type="button" class="btn btn-success btn-lg w-100" id="btn-confirm-turn" disabled>
+              Confirm turn — -
+            </button>
+          </div>
+        </div>
+
+        <div class="card shadow-sm mb-3">
+          <div class="card-header py-2"><strong>Scores</strong></div>
+          <div class="table-responsive mb-0">
+            <table class="table table-sm table-striped mb-0 align-middle" id="score-table">
+              <thead>
+                <tr>
+                  <th scope="col">Player</th>
+                  <th scope="col" class="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody id="score-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Finished -->
+      <section id="screen-finished" class="screen d-none">
+        <h2 class="h4 mb-3">Final standings</h2>
+        <div id="standings-podium-wrap" class="standings-podium-wrap mb-4"></div>
+        <h3 class="h6 text-muted text-uppercase mb-2 d-none letter-spacing-tight" id="standings-others-heading">
+          Other places
+        </h3>
+        <ul class="list-group shadow-sm mb-4 d-none" id="standings-rest-list"></ul>
+        <button type="button" class="btn btn-primary btn-lg w-100" id="btn-new-from-finished">New game</button>
+      </section>
+    </main>
+
+    <script
+      src="https://code.jquery.com/jquery-3.7.1.min.js"
+      integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+    <script src="app.js"></script>
+  </body>
+</html>
