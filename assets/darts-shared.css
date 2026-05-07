@@ -13,33 +13,56 @@
   min-width: 2.5rem;
 }
 
-/* Establish target: one strip — Miss, 1…20, Bull (uniform gap only; no extra Bull inset) */
-.establish-target-strip {
-  justify-content: flex-start;
-  column-gap: 0.35rem;
-  row-gap: 0.35rem;
+/* Establish target: rows 1–10, 11–20 (centered); Bull + Miss on last row */
+.establish-target-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
 }
 
-.establish-target-strip .establish-bull-first {
-  min-width: 3rem;
+.establish-target-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  column-gap: 0.45rem;
+  row-gap: 0.45rem;
+  width: 100%;
 }
 
-/* Same rhythm as other strip buttons — no odd wrap/taller row between 20 and Bull */
-.establish-target-strip .btn {
+.establish-target-row--miss-bull {
+  gap: 0.75rem;
+}
+
+.establish-target-panel .btn-establish-bull {
+  min-width: 3.75rem;
+}
+
+/* Same rhythm as other strip buttons */
+.establish-target-panel .establish-target-grid .btn {
   white-space: nowrap;
+  font-size: 1.05rem;
+  font-weight: 600;
+  padding: 0.55rem 0.75rem;
+  min-height: 3rem;
 }
 
-.establish-target-strip .btn-establish-miss {
+.establish-target-panel .btn-establish-miss {
+  min-width: 3.75rem;
+}
+
+.establish-target-panel .dart-pick-sector-btn {
   min-width: 3rem;
 }
 
 /* Establish strip: every button is outline gray; selection uses darker outline only (no solid fills) */
-.establish-target-strip .btn-outline-secondary {
+.establish-target-panel .btn-outline-secondary {
   --bs-btn-color: var(--bs-secondary);
   color: var(--bs-secondary) !important;
 }
 
-.establish-target-strip .btn-outline-secondary.establish-strip-btn--active {
+.establish-target-panel .btn-outline-secondary.establish-strip-btn--active {
   --bs-btn-color: #212529;
   color: #212529 !important;
   border-color: #212529 !important;
@@ -142,23 +165,32 @@
 }
 
 .dart-sector {
-  stroke: #3e2723;
-  stroke-width: 0.6;
+  stroke: #2d1f14;
+  stroke-width: 0.45;
   transition: fill 0.15s ease, stroke 0.15s ease;
 }
 
-.dart-sector--inactive-even {
-  fill: #ece7dc;
+/* Classic board: odd wedges “black” family (12 o’clock = 20), even index = dark singles + red rings */
+.dart-band--single-dark {
+  fill: #141414;
 }
 
-.dart-sector--inactive-odd {
-  fill: #2d2a26;
+.dart-band--single-light {
+  fill: #ece8e0;
+}
+
+.dart-band--ring-red {
+  fill: #b31515;
+}
+
+.dart-band--ring-green {
+  fill: #1f6e34;
 }
 
 .dart-sector--target {
   fill: #ffc107 !important;
   stroke: #e65100 !important;
-  stroke-width: 3 !important;
+  stroke-width: 2.5 !important;
   filter: url(#dart-glow);
 }
 

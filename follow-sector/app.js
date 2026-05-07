@@ -120,28 +120,48 @@
 
   var dartboardSectorsBuilt = false;
 
+  /** Neutral classes per annular band (classic: dark wedge → black singles + red D/T; light → cream + green D/T). */
+  function wedgeNeutralClasses(wedgeIndex, band) {
+    var blackFamilyWedge = wedgeIndex % 2 === 0;
+    if (band === 'triple' || band === 'double') {
+      return (
+        'dart-sector dart-band dart-band--ring-' + (blackFamilyWedge ? 'red' : 'green')
+      );
+    }
+    return (
+      'dart-sector dart-band dart-band--single-' + (blackFamilyWedge ? 'dark' : 'light')
+    );
+  }
+
   function ensureDartboardSectors() {
     if (dartboardSectorsBuilt) return;
     var $g = $('#dartboard-sectors');
     if (!$g.length) return;
     var cx = 100;
     var cy = 100;
-    var rIn = 26;
-    var rOut = 94;
+    /* Inner scoring ring → triple → outer single → double (radii in SVG units; bull uses r < 26). */
+    var bands = [
+      { band: 'inner-single', r0: 26, r1: 50 },
+      { band: 'triple', r0: 50, r1: 58 },
+      { band: 'outer-single', r0: 58, r1: 82 },
+      { band: 'double', r0: 82, r1: 94 },
+    ];
+    /* Wedges: bisector of index 0 (sector 20) at -90° = 12 o'clock (edges -99°…-81°). */
     for (var i = 0; i < 20; i++) {
-      var a0 = -90 + i * 18;
-      var a1 = a0 + 18;
-      var d = wedgePath(cx, cy, rIn, rOut, a0, a1);
+      var a0 = -99 + i * 18;
+      var a1 = -81 + i * 18;
       var sectorNum = DART_SECTOR_ORDER[i];
-      var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', d);
-      path.setAttribute('data-sector', String(sectorNum));
-      path.setAttribute('data-wedge-index', String(i));
-      path.setAttribute(
-        'class',
-        'dart-sector ' + (i % 2 === 0 ? 'dart-sector--inactive-even' : 'dart-sector--inactive-odd')
-      );
-      $g[0].appendChild(path);
+      for (var bi = 0; bi < bands.length; bi++) {
+        var B = bands[bi];
+        var d = wedgePath(cx, cy, B.r0, B.r1, a0, a1);
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('data-sector', String(sectorNum));
+        path.setAttribute('data-wedge-index', String(i));
+        path.setAttribute('data-band', B.band);
+        path.setAttribute('class', wedgeNeutralClasses(i, B.band));
+        $g[0].appendChild(path);
+      }
     }
     dartboardSectorsBuilt = true;
   }
@@ -158,10 +178,8 @@
     $('#dartboard-sectors path').each(function () {
       var $p = $(this);
       var idx = Number($p.attr('data-wedge-index'));
-      $p.attr(
-        'class',
-        'dart-sector ' + (idx % 2 === 0 ? 'dart-sector--inactive-even' : 'dart-sector--inactive-odd')
-      );
+      var band = $p.attr('data-band');
+      $p.attr('class', wedgeNeutralClasses(idx, band));
     });
   }
 
@@ -205,14 +223,11 @@
       var $p = $(this);
       var s = Number($p.attr('data-sector'));
       var idx = Number($p.attr('data-wedge-index'));
-      var isTarget = s === sector;
-      if (isTarget) {
-        $p.attr('class', 'dart-sector dart-sector--target');
+      var band = $p.attr('data-band');
+      if (s === sector) {
+        $p.attr('class', 'dart-sector dart-band dart-sector--target');
       } else {
-        $p.attr(
-          'class',
-          'dart-sector ' + (idx % 2 === 0 ? 'dart-sector--inactive-even' : 'dart-sector--inactive-odd')
-        );
+        $p.attr('class', wedgeNeutralClasses(idx, band));
       }
     });
 
@@ -675,37 +690,40 @@
 
       var head = $('<div class="establish-target-panel border rounded p-3 bg-white mb-2"></div>');
 
-      var strip = $(
-        '<div class="establish-target-strip d-flex flex-wrap align-items-center"></div>'
-      );
+      var grid = $('<div class="establish-target-grid"></div>');
 
-      strip.append(
-        $('<button type="button" class="btn btn-sm btn-establish-miss btn-outline-secondary"></button>')
-          .text('Miss')
-          .toggleClass('establish-strip-btn--active', !!(choice && choice.type === 'miss'))
-          .attr('data-establish', 'miss')
-      );
-
-      for (var s = 1; s <= 20; s++) {
+      function appendSectorBtn(strip, s) {
         var wActive = choice && choice.type === 'wedge' && choice.s === s;
         strip.append(
-          $('<button type="button" class="btn btn-sm dart-pick-sector-btn btn-outline-secondary"></button>')
+          $('<button type="button" class="btn dart-pick-sector-btn btn-outline-secondary"></button>')
             .text(s)
             .toggleClass('establish-strip-btn--active', !!wActive)
             .attr('data-establish', 'sector-' + s)
         );
       }
 
+      var row1 = $('<div class="establish-target-row"></div>');
+      for (var s1 = 1; s1 <= 10; s1++) appendSectorBtn(row1, s1);
+
+      var row2 = $('<div class="establish-target-row"></div>');
+      for (var s2 = 11; s2 <= 20; s2++) appendSectorBtn(row2, s2);
+
       var bullOn = choice && choice.type === 'bull';
-      strip.append(
-        $('<button type="button" class="btn btn-sm dart-pick-sector-btn establish-bull-first btn-outline-secondary"></button>')
+      var rowMissBull = $('<div class="establish-target-row establish-target-row--miss-bull"></div>');
+      rowMissBull.append(
+        $('<button type="button" class="btn dart-pick-sector-btn btn-establish-bull btn-outline-secondary"></button>')
           .text('Bull')
           .toggleClass('establish-strip-btn--active', !!bullOn)
           .attr('data-establish', 'bull')
-          .attr('title', 'Inner bull — 50 points')
+          .attr('title', 'Inner bull — 50 points'),
+        $('<button type="button" class="btn btn-establish-miss btn-outline-secondary"></button>')
+          .text('Miss')
+          .toggleClass('establish-strip-btn--active', !!(choice && choice.type === 'miss'))
+          .attr('data-establish', 'miss')
       );
 
-      head.append(strip);
+      grid.append(row1, row2, rowMissBull);
+      head.append(grid);
       $panel.append(head);
       return;
     }

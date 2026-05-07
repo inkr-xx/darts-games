@@ -112,28 +112,46 @@
 
   var dartboardSectorsBuilt = false;
 
+  function wedgeNeutralClasses(wedgeIndex, band) {
+    var blackFamilyWedge = wedgeIndex % 2 === 0;
+    if (band === 'triple' || band === 'double') {
+      return (
+        'dart-sector dart-band dart-band--ring-' + (blackFamilyWedge ? 'red' : 'green')
+      );
+    }
+    return (
+      'dart-sector dart-band dart-band--single-' + (blackFamilyWedge ? 'dark' : 'light')
+    );
+  }
+
   function ensureDartboardSectors() {
     if (dartboardSectorsBuilt) return;
     var $g = $('#dartboard-sectors');
     if (!$g.length) return;
     var cx = 100;
     var cy = 100;
-    var rIn = 26;
-    var rOut = 94;
+    var bands = [
+      { band: 'inner-single', r0: 26, r1: 50 },
+      { band: 'triple', r0: 50, r1: 58 },
+      { band: 'outer-single', r0: 58, r1: 82 },
+      { band: 'double', r0: 82, r1: 94 },
+    ];
+    /* Wedges: bisector of index 0 (sector 20) at -90° = 12 o'clock (edges -99°…-81°). */
     for (var i = 0; i < 20; i++) {
-      var a0 = -90 + i * 18;
-      var a1 = a0 + 18;
-      var d = wedgePath(cx, cy, rIn, rOut, a0, a1);
+      var a0 = -99 + i * 18;
+      var a1 = -81 + i * 18;
       var sectorNum = DART_SECTOR_ORDER[i];
-      var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', d);
-      path.setAttribute('data-sector', String(sectorNum));
-      path.setAttribute('data-wedge-index', String(i));
-      path.setAttribute(
-        'class',
-        'dart-sector ' + (i % 2 === 0 ? 'dart-sector--inactive-even' : 'dart-sector--inactive-odd')
-      );
-      $g[0].appendChild(path);
+      for (var bi = 0; bi < bands.length; bi++) {
+        var B = bands[bi];
+        var d = wedgePath(cx, cy, B.r0, B.r1, a0, a1);
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        path.setAttribute('data-sector', String(sectorNum));
+        path.setAttribute('data-wedge-index', String(i));
+        path.setAttribute('data-band', B.band);
+        path.setAttribute('class', wedgeNeutralClasses(i, B.band));
+        $g[0].appendChild(path);
+      }
     }
     dartboardSectorsBuilt = true;
   }
@@ -143,10 +161,8 @@
     $('#dartboard-sectors path').each(function () {
       var $p = $(this);
       var idx = Number($p.attr('data-wedge-index'));
-      $p.attr(
-        'class',
-        'dart-sector ' + (idx % 2 === 0 ? 'dart-sector--inactive-even' : 'dart-sector--inactive-odd')
-      );
+      var band = $p.attr('data-band');
+      $p.attr('class', wedgeNeutralClasses(idx, band));
     });
   }
 
@@ -181,14 +197,11 @@
       var $p = $(this);
       var s = Number($p.attr('data-sector'));
       var idx = Number($p.attr('data-wedge-index'));
-      var isTarget = s === sector;
-      if (isTarget) {
-        $p.attr('class', 'dart-sector dart-sector--target');
+      var band = $p.attr('data-band');
+      if (s === sector) {
+        $p.attr('class', 'dart-sector dart-band dart-sector--target');
       } else {
-        $p.attr(
-          'class',
-          'dart-sector ' + (idx % 2 === 0 ? 'dart-sector--inactive-even' : 'dart-sector--inactive-odd')
-        );
+        $p.attr('class', wedgeNeutralClasses(idx, band));
       }
     });
 
