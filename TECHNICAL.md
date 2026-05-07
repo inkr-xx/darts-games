@@ -1,6 +1,6 @@
 # Darts apps — shared technical specification
 
-Applies to **follow-sector** and **random-sector** unless noted.
+Applies to **follow-sector**, **random-sector**, and **max-game** unless noted.
 
 ## Stack & delivery
 
@@ -14,6 +14,7 @@ Applies to **follow-sector** and **random-sector** unless noted.
 | **`assets/darts-shared.css`** | Shared layout and component styles (dartboard, podium, setup width, progress bar, etc.) |
 | **`follow-sector/`** | `index.html`, `app.js`, `styles.css` |
 | **`random-sector/`** | `index.html`, `app.js`, `styles.css` |
+| **`max-game/`** | `index.html`, `app.js`, `styles.css` |
 
 Each game page loads styles in order:
 
@@ -49,3 +50,7 @@ Clears the saved session (`sessionStorage` game key), resets client state, retur
 
 - **sessionStorage** may include **tie-break** phase and related state while a tie-break is in progress.
 - **`styles.css`:** e.g. hides the SVG wedge label when the large target numeral is shown beside the compact board.
+
+### max-game
+
+- **`sessionStorage`** key **`maxGameState`** — in-progress **playing** / **finished** only (seven rounds). **`pending`** while playing is **`{ buffer: string }`** — digits typed for the **visit total** (three-dart sum); legacy saves with per-dart state are reset on load.
