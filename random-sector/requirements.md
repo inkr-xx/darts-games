@@ -22,16 +22,7 @@
 
 ## Technical
 
-- **Stack:** Static **HTML**, **JavaScript**, **Bootstrap**, **jQuery** (CDN). No build step.
-- **Styles:** Shared **`../assets/darts-shared.css`** plus **`styles.css`** in this folder.
-- **Layout:** Mobile-first; optional max width on larger screens for setup / cards (shared CSS).
-- **Language:** English UI.
-- **Navigation:** **Home** links to **`../index.html`** (selector page).
-- **Persistence**
-  - **`localStorage`:** Last-used player names; setup offers **Use last names**.
-  - **`sessionStorage`:** In-progress game; refresh keeps the session; closing the tab usually clears it.
-- **Abandon game:** Clears session and returns to setup.
-- **Legacy saves:** Old sessions with tie-break or round **> 7** are discarded on load.
+Shared stack, CSS loading, persistence, and navigation are documented in **[`../TECHNICAL.md`](../TECHNICAL.md)** (includes **random-sector** legacy-save behaviour).
 
 ## UI / behaviour
 

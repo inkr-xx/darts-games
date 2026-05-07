@@ -1,6 +1,6 @@
 # Follow-sector — requirements
 
-Technical stack, persistence, and most UI patterns match **random-sector** (same Bootstrap/jQuery static app, shared **`../assets/darts-shared.css`**, **Home** → **`../index.html`**, **Abandon game**, mobile-first cards). **Game rules** differ as below.
+**Technical** details (stack, `assets/darts-shared.css`, persistence, **Home**, **Abandon game**) are in **[`../TECHNICAL.md`](../TECHNICAL.md)**. **Game rules** are below.
 
 ## Game logic
 
@@ -49,12 +49,7 @@ Technical stack, persistence, and most UI patterns match **random-sector** (same
 
 ## Technical
 
-- **Stack:** Static HTML, JavaScript, Bootstrap, jQuery (CDN).
-- **Styles:** **`../assets/darts-shared.css`** + **`styles.css`** (game-specific overrides, e.g. hidden SVG wedge label).
-- **Language:** English UI.
-- **Navigation:** **Home** → **`../index.html`**.
-- **Persistence:** **`localStorage`** (names), **`sessionStorage`** (in-progress game including tie-break).
-- **Abandon game:** Clears session, returns to setup.
+See **[`../TECHNICAL.md`](../TECHNICAL.md)** — especially **follow-sector** notes (tie-break in session, wedge-label override CSS).
 
 ## UI / behaviour
 
