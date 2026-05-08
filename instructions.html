@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Instructions</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <style>
+      .md-content :is(h1, h2, h3) {
+        scroll-margin-top: 6rem;
+      }
+      .md-content pre {
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        background: #0b1020;
+        color: #e8eefc;
+        overflow: auto;
+      }
+      .md-content code:not(pre code) {
+        padding: 0.1rem 0.35rem;
+        border-radius: 0.35rem;
+        background: rgba(13, 110, 253, 0.1);
+      }
+      .md-content table {
+        width: 100%;
+      }
+      .md-content table th,
+      .md-content table td {
+        padding: 0.5rem;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+        vertical-align: top;
+      }
+    </style>
+  </head>
+  <body class="bg-light">
+    <header class="navbar navbar-dark bg-primary shadow-sm py-2">
+      <div class="container-fluid px-3 d-flex align-items-center">
+        <a href="index.html" class="btn btn-outline-light btn-sm me-2" aria-label="Home" title="Home">
+          <i class="bi bi-house" aria-hidden="true"></i>
+        </a>
+        <span class="navbar-brand mb-0 h1 fs-5 d-flex align-items-center gap-2">
+          <i class="bi bi-info-circle" aria-hidden="true"></i>
+          <span id="page-title">Instructions</span>
+        </span>
+      </div>
+    </header>
+
+    <main class="container px-3 py-4 pb-5">
+      <div class="alert alert-danger d-none" role="alert" id="load-error"></div>
+
+      <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+        <a class="btn btn-outline-secondary btn-sm d-none" id="btn-back-to-game" href="#">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          <span class="ms-1">Back to game</span>
+        </a>
+      </div>
+
+      <article class="card shadow-sm">
+        <div class="card-body">
+          <div class="placeholder-glow" id="loading-skeleton">
+            <div class="placeholder col-6 mb-2"></div>
+            <div class="placeholder col-12 mb-2"></div>
+            <div class="placeholder col-10 mb-2"></div>
+            <div class="placeholder col-11 mb-2"></div>
+            <div class="placeholder col-7"></div>
+          </div>
+          <div class="md-content d-none" id="md-content"></div>
+        </div>
+      </article>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.5/dist/purify.min.js"></script>
+    <script>
+      (function () {
+        const allowedGames = {
+          "follow-sector": { title: "Follow the wedge", readmePath: "follow-sector/README.md", gamePath: "follow-sector/index.html" },
+          "random-sector": { title: "Random wedge", readmePath: "random-sector/README.md", gamePath: "random-sector/index.html" },
+          "max-game": { title: "Max", readmePath: "max-game/README.md", gamePath: "max-game/index.html" },
+          "min-game": { title: "Min", readmePath: "min-game/README.md", gamePath: "min-game/index.html" },
+        };
+
+        const qs = new URLSearchParams(window.location.search);
+        const game = qs.get("game") || "";
+
+        const titleEl = document.getElementById("page-title");
+        const errorEl = document.getElementById("load-error");
+        const skeletonEl = document.getElementById("loading-skeleton");
+        const mdEl = document.getElementById("md-content");
+        const backBtn = document.getElementById("btn-back-to-game");
+
+        const conf = allowedGames[game];
+        if (!conf) {
+          errorEl.classList.remove("d-none");
+          errorEl.textContent =
+            "Missing or unknown game. Open Instructions from a game page or use one of: " + Object.keys(allowedGames).join(", ");
+          skeletonEl.classList.add("d-none");
+          return;
+        }
+
+        document.title = conf.title + " — Instructions";
+        titleEl.textContent = conf.title + " — Instructions";
+
+        backBtn.classList.remove("d-none");
+        backBtn.href = conf.gamePath;
+
+        fetch(conf.readmePath, { cache: "no-cache" })
+          .then((r) => {
+            if (!r.ok) throw new Error("Failed to load README (" + r.status + ")");
+            return r.text();
+          })
+          .then((md) => {
+            marked.setOptions({ gfm: true, breaks: false });
+            const rawHtml = marked.parse(md);
+            const safeHtml = window.DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
+            mdEl.innerHTML = safeHtml;
+            skeletonEl.classList.add("d-none");
+            mdEl.classList.remove("d-none");
+          })
+          .catch((err) => {
+            errorEl.classList.remove("d-none");
+            errorEl.textContent = String(err && err.message ? err.message : err);
+            skeletonEl.classList.add("d-none");
+          });
+      })();
+    </script>
+  </body>
+</html>
+
