@@ -1,6 +1,6 @@
 # Darts apps — shared technical specification
 
-Applies to **follow-sector**, **random-sector**, **max-game**, and **min-game** unless noted.
+Applies to **follow-sector**, **random-sector**, **max-game**, **min-game**, and **around-the-world** unless noted.
 
 ## Stack & delivery
 
@@ -16,6 +16,7 @@ Applies to **follow-sector**, **random-sector**, **max-game**, and **min-game** 
 | **`random-sector/`** | `index.html`, `app.js`, `styles.css` |
 | **`max-game/`** | `index.html`, `app.js`, `styles.css` |
 | **`min-game/`** | `index.html`, `app.js`, `styles.css` |
+| **`around-the-world/`** | `index.html`, `app.js`, `styles.css` |
 
 Each game page loads styles in order:
 
@@ -26,7 +27,7 @@ Each game page loads styles in order:
 
 - **Language:** English.
 - **Layout:** Mobile-first; optional max-width on larger screens for setup and main cards (see shared CSS).
-- **Navbar:** Game title; **`Home`** → **`../index.html`** (selector); **`Abandon game`** visible during play and on finished screen (hidden on setup).
+- **Navbar:** Game title; **`Home`** → **`../index.html`** (selector); **`Instructions`** → **`../instructions.html?game=<game-id>`** (loads `README.md` via Marked + DOMPurify — same behaviour as the hub); **`Abandon game`** visible during play and on finished screen (hidden on setup).
 
 ## Persistence
 
@@ -60,3 +61,7 @@ Clears the saved session (`sessionStorage` game key), resets client state, retur
 ### min-game
 
 - **`sessionStorage`** key **`minGameState`**. Same keypad **`pending`** shape as **max-game**. **Standings:** lowest cumulative score wins; an entered visit of **0** adds **60** to the running total (miss rule).
+
+### around-the-world
+
+- **`sessionStorage`** key **`aroundWorldState`** — in-progress **playing** / **finished**; **`pendingRound`** holds unconfirmed Hit/Miss entries until **Confirm** (same refresh behaviour as other games).

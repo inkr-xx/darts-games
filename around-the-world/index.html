@@ -22,7 +22,12 @@
           <a href="../index.html" class="btn btn-outline-light btn-sm" aria-label="Home" title="Home">
             <i class="bi bi-house" aria-hidden="true"></i>
           </a>
-          <a href="README.md" class="btn btn-outline-light btn-sm" aria-label="Instructions" title="Instructions">
+          <a
+            href="../instructions.html?game=around-the-world"
+            class="btn btn-outline-light btn-sm"
+            aria-label="Instructions"
+            title="Instructions"
+          >
             <i class="bi bi-info-circle" aria-hidden="true"></i>
           </a>
           <button type="button" class="btn btn-outline-light btn-sm d-none" id="btn-abandon" aria-label="Abandon game">
@@ -38,6 +43,10 @@
       <section id="screen-setup" class="screen">
         <h2 class="h4 mb-3">New game</h2>
         <p class="text-muted small mb-3">Single player. Visit every wedge in order; your score is the total number of darts thrown (lower is better).</p>
+        <details class="small text-muted mb-3">
+          <summary>HTML markup for the Instructions link</summary>
+          <pre class="mb-0 mt-2"><code>&lt;a href="../instructions.html?game=around-the-world" class="btn btn-outline-light btn-sm" aria-label="Instructions" title="Instructions"&gt;&lt;i class="bi bi-info-circle" aria-hidden="true"&gt;&lt;/i&gt;&lt;/a&gt;</code></pre>
+        </details>
         <div class="mb-3">
           <label for="setup-player-name" class="form-label">Name</label>
           <input type="text" class="form-control form-control-lg" id="setup-player-name" maxlength="40" autocomplete="name" />
