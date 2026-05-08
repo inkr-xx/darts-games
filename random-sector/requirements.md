@@ -5,7 +5,7 @@
 - **Players:** 1..n. **Setup order** is the **fixed turn order** for **every round** (rounds **1–7**).
 - **Board:** Sectors **1..20** (miss / single / double / triple on the **round target**) and **bull** (miss / **5** / **15** — outer bull / bullseye by convention in the UI).
 - **Structure:** **7 rounds** only. There is **no** eighth round and **no** extra tie-break **play**.
-- **Random target each round:** Rounds **1–6:** uniform random wedge **1–20** only (no bull). Round **7:** target is **always bull** (bull round scoring).
+- **Random target each round:** Rounds **1–6:** uniform random wedge chosen uniformly from **1–20** excluding wedges already used in earlier wedge rounds (no bull). Round **7:** target is **always bull** (bull round scoring).
 - **Turn:** Each player has **three darts** per turn, then **Confirm turn**.
 - **Scoring — wedge target (1–20):** Points per dart are **not** face value; they are **multiplier points only**:
   - Miss **0**, single **1**, double **2**, triple **3** (per dart, summed for the turn).

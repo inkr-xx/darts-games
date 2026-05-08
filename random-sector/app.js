@@ -10,6 +10,8 @@
     fixedPlayerIds: [],
     round: 1,
     roundTarget: null,
+    /** Sector numbers 1–20 already used in completed wedge rounds (rounds 1–6). */
+    usedWedgeNumbers: [],
     roundPlayerIds: [],
     turnIndex: 0,
     pending: null,
@@ -60,29 +62,47 @@
     return min + Math.floor(Math.random() * (max - min + 1));
   }
 
-  /** Rounds 1–6: uniform random wedge 1–20. Round 7: always bull. */
+  function ensureUsedWedgeNumbers() {
+    if (!Array.isArray(state.usedWedgeNumbers)) state.usedWedgeNumbers = [];
+  }
+
+  /** Uniform random wedge among 1–20 not in `used` (completed earlier wedge rounds). */
+  function pickRandomUnusedWedge(used) {
+    var pool = [];
+    for (var i = 1; i <= 20; i++) {
+      if (used.indexOf(i) === -1) pool.push(i);
+    }
+    if (!pool.length) return { k: 'wedge', n: randomInt(1, 20) };
+    return { k: 'wedge', n: pool[randomInt(0, pool.length - 1)] };
+  }
+
+  /** Rounds 1–6: uniform random unused wedge 1–20. Round 7: always bull. */
   function randomRoundTarget() {
     var r = Math.max(1, Math.min(7, Number(state.round) || 1));
     if (r === 7) return { k: 'bull' };
-    return { k: 'wedge', n: randomInt(1, 20) };
+    ensureUsedWedgeNumbers();
+    return pickRandomUnusedWedge(state.usedWedgeNumbers);
   }
 
   /** Fix saved games from older rules (e.g. bull before round 7). */
   function normalizeRoundTargetForCurrentRound() {
+    ensureUsedWedgeNumbers();
     var r = Math.max(1, Math.min(7, Number(state.round) || 1));
     if (r === 7) {
       if (!state.roundTarget || state.roundTarget.k !== 'bull') {
         state.roundTarget = { k: 'bull' };
       }
     } else {
+      var used = state.usedWedgeNumbers;
       var bad =
         !state.roundTarget ||
         state.roundTarget.k === 'bull' ||
         typeof state.roundTarget.n !== 'number' ||
         state.roundTarget.n < 1 ||
-        state.roundTarget.n > 20;
+        state.roundTarget.n > 20 ||
+        used.indexOf(state.roundTarget.n) !== -1;
       if (bad) {
-        state.roundTarget = { k: 'wedge', n: randomInt(1, 20) };
+        state.roundTarget = pickRandomUnusedWedge(used);
       }
     }
   }
@@ -368,6 +388,7 @@
     state.players = players;
     state.fixedPlayerIds = fixed;
     state.round = 1;
+    state.usedWedgeNumbers = [];
     state.roundTarget = randomRoundTarget();
     state.roundPlayerIds = fixed.slice();
     state.turnIndex = 0;
@@ -395,6 +416,10 @@
   function afterRoundComplete() {
     var r = state.round;
     if (r < 7) {
+      ensureUsedWedgeNumbers();
+      if (state.roundTarget && state.roundTarget.k === 'wedge') {
+        state.usedWedgeNumbers.push(state.roundTarget.n);
+      }
       beginRound(r + 1);
       return;
     }
@@ -452,7 +477,7 @@
         (function (idx) {
           var row = $('<div class="mb-3"></div>');
           var sel = pending.mults[idx];
-          var btnRow = $('<div class="d-flex flex-wrap gap-2"></div>');
+          var btnRow = $('<div class="row g-2"></div>');
           var labels = [
             { m: 0, label: 'Miss', cls: 'btn-outline-secondary' },
             { m: 1, label: 'Single', cls: 'btn-outline-primary' },
@@ -466,7 +491,7 @@
               .text(L.label)
               .attr('data-throw-idx', idx)
               .attr('data-mult', L.m);
-            btnRow.append(b);
+            btnRow.append($('<div class="col-6 col-sm-auto d-grid"></div>').append(b));
           });
           row.append(btnRow);
           $panel.append(row);
@@ -477,7 +502,7 @@
         (function (idx) {
           var row = $('<div class="mb-3"></div>');
           var sel = pending.vals[idx];
-          var btnRow = $('<div class="d-flex flex-wrap gap-2"></div>');
+          var btnRow = $('<div class="row g-2"></div>');
           [
             { v: 0, label: 'Miss', cls: 'btn-outline-secondary' },
             { v: 5, label: '5', cls: 'btn-outline-success' },
@@ -489,7 +514,7 @@
               .text(L.label)
               .attr('data-bull-idx', idx)
               .attr('data-bull-val', L.v);
-            btnRow.append(b);
+            btnRow.append($('<div class="col-4 col-sm-auto d-grid"></div>').append(b));
           });
           row.append(btnRow);
           $panel.append(row);
@@ -732,6 +757,7 @@
           state.roundTarget = { k: 'wedge', n: state.targetSector };
         }
         if (state.targetSector !== undefined) delete state.targetSector;
+        ensureUsedWedgeNumbers();
         normalizeRoundTargetForCurrentRound();
         state.players.forEach(function (p) {
           if (typeof p.triples !== 'number') p.triples = 0;
@@ -772,6 +798,7 @@
       fixedPlayerIds: [],
       round: 1,
       roundTarget: null,
+      usedWedgeNumbers: [],
       roundPlayerIds: [],
       turnIndex: 0,
       pending: null,
@@ -851,6 +878,7 @@
         fixedPlayerIds: [],
         round: 1,
         roundTarget: null,
+        usedWedgeNumbers: [],
         roundPlayerIds: [],
         turnIndex: 0,
         pending: null,
