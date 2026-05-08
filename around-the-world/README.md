@@ -5,7 +5,7 @@ Single-player practice game: hit every wedge **in order**. Your **score is the t
 ## Setup
 
 1. Enter your **name** (saved with other games for “last names”).
-2. Choose **1 → 20** or **20 → 1**.
+2. Choose **1 → 20**, **20 → 1**, or **Random** (all 20 wedges in an order shuffled once at start). In **Random**, a **progress bar** shows how many wedges you’ve cleared (**n / 20**).
 3. Press **Start game**.
 
 ## Gameplay
@@ -23,4 +23,4 @@ Single-player practice game: hit every wedge **in order**. Your **score is the t
 
 ## End of game
 
-When the last wedge (**20** in 1→20, **1** in 20→1) is hit, the game ends. If you finish on the **first or second** dart of a round, any **remaining darts for that round are not used** and do **not** count.
+When the **final wedge in your mode’s sequence** is hit (including the last step of a **Random** order), the game ends. If you finish on the **first or second** dart of a round, any **remaining darts for that round are not used** and do **not** count.

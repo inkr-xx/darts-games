@@ -3,7 +3,7 @@
 ## Game logic
 
 - **Players:** **Single player** only (one name at setup).
-- **Modes** (chosen before start): **1 → 20** or **20 → 1**. Rules are the same in both directions: visit every wedge **once**, in **strict order** (must complete the current wedge before advancing).
+- **Modes** (chosen before start): **1 → 20**, **20 → 1**, or **Random**. In **1 → 20** / **20 → 1**, visit every wedge **once** in that numeric order (must complete the current wedge before advancing). In **Random**, a single **permutation of wedges 1..20** is drawn when the game starts (Fisher–Yates shuffle); all **20** wedges must be visited **in that order** — the sequence does not change during play. **Random** shows a **progress bar** for **wedges cleared** (0–20).
 - **Board:** Wedges **1..20** only. **Bull is excluded** — a dart on bull counts as a **miss** for progression (the dart still counts toward the total dart count).
 - **Hits:** Any scoring hit on the **active** wedge counts — **single, double, or triple** are equivalent (“any hit in the wedge”).
 - **Misses:** A dart that does **not** land on the active wedge counts as a **miss** — including **wrong wedge** or **bull**. Each recorded dart (**hit or miss**) adds **1** to the running **total darts**.
@@ -19,7 +19,7 @@
 ## Rounds and progression
 
 - Each **round** allows up to **three** darts (same upper bound as “three throws per round”).
-- At the start of each round, the scoreboard shows the **next up to three wedges** in sequence for the current mode — e.g. in **1 → 20**, after wedge **6** is cleared the round might show **7, 8, 9**; near the end it might show only **19, 20** or **20**.
+- At the start of each round, the scoreboard shows the **next up to three wedges** in sequence for the current mode — e.g. in **1 → 20**, after wedge **6** is cleared the round might show **7, 8, 9**; in **Random**, the three badges follow the shuffled list from the current position; near the end only **one or two** wedges may remain in the strip.
 - After **three** confirmed darts in a round (hits or misses), the **next round** begins automatically; unused slots do not carry over as extra free darts — only behaviour documented below avoids counting unused throws.
 
 ## N/N (end round early)
@@ -30,7 +30,7 @@
 
 ## End of game and score
 
-- The game ends when the **last** wedge in the sequence is hit (**20** in **1 → 20**, **1** in **20 → 1**).
+- The game ends when the **last** wedge in the sequence is hit (last in order for **1 → 20** / **20 → 1**, or the **20th** step in the shuffled **Random** list).
 - **Final score** = **total number of darts thrown** (every recorded hit or miss). **Lower is better** for this game type.
 - If the **final wedge** is hit before using all three darts in that round, **remaining darts in that round are not needed** and **do not** count toward the score (same idea as N/N for “unused shots don’t count”).
 
@@ -38,11 +38,11 @@
 
 Shared stack, CSS loading order, persistence pattern (`localStorage` last names, `sessionStorage` in-progress game), navbar (**Home**, instructions, **Abandon game** during play), and navigation match **[`../TECHNICAL.md`](../TECHNICAL.md)**.
 
-- **`sessionStorage`** key: **`aroundWorldState`** for in-progress / finished session restore until abandon or tab close.
+- **`sessionStorage`** key: **`aroundWorldState`** for in-progress / finished session restore until abandon or tab close. **Random** mode persists **`visitOrder`** and **`progressIndex`** so refresh keeps the same shuffled order.
 - **`localStorage`** player names use the shared **`dartsLastPlayerNames`** key with other games (single saved name as a one-element list).
 
 ## UI / behaviour
 
-- **Setup:** Player **name** and **mode** radio (**1 → 20** / **20 → 1**); **Start game**.
-- **Play:** **Compact dartboard** image with this round’s wedge sectors **highlighted** (active wedge vs other wedges still in this round’s sequence); **wedge numbers** beside the board in order; **last card** header shows player and **darts thrown** (confirmed + pending preview); row **Hit N** / **Miss**; row **Confirm** / **Reset**; **pending** line lists each dart with wedge (**Hit N** / **Miss N**) when applicable; **N/N** when applicable.
+- **Setup:** Player **name** and **mode** horizontal button toggle (**1 → 20** / **20 → 1** / **Random**); **Start game**.
+- **Play:** **Random** mode: **progress bar** for wedges cleared (shared **round-progress** styling). **Compact dartboard** image with this round’s wedge sectors **highlighted** (active wedge vs other wedges still in this round’s sequence); **wedge numbers** beside the board in order; **last card** header shows player and **darts thrown** (confirmed + pending preview); row **Hit N** / **Miss**; row **Confirm** / **Reset**; **pending** line lists each dart with wedge (**Hit N** / **Miss N**) when applicable; **N/N** when applicable.
 - **Finished:** Shows final dart total and **New game** (returns to setup and clears session on abandon flow).

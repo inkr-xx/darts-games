@@ -1,5 +1,17 @@
 /* Around the world — game-specific overrides only */
 
+/* Setup: three equal-width mode toggles in one row */
+.mode-toggle.btn-group {
+  display: flex;
+  width: 100%;
+}
+
+.mode-toggle .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
 /* Reserve space so Hit/Miss row does not jump when pending text appears.
    Anchor copy toward Confirm (bottom), not centered toward Hit row. */
 .pending-hint-slot {

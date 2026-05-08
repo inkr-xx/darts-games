@@ -17,6 +17,10 @@
     roundNumber: 1,
     /** Unconfirmed darts this round: 'hit' | 'miss' (max 3 − dartsThisRound). */
     pendingRound: [],
+    /** Mode random only: permutation of 1..20 fixed at game start. */
+    visitOrder: null,
+    /** Mode random only: index 0..19 = current target in visitOrder; 20 = finished. */
+    progressIndex: 0,
   };
 
   function saveGame() {
@@ -68,9 +72,44 @@
     $('#btn-abandon').toggleClass('d-none', id === 'screen-setup' || id === 'screen-finished');
   }
 
-  function roundTriple(nextReq, mode) {
+  function shuffleVisitOrder() {
+    var arr = [];
+    var i;
+    for (i = 1; i <= 20; i++) arr.push(i);
+    for (i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function validateVisitOrderStructure(vo) {
+    if (!Array.isArray(vo) || vo.length !== 20) return false;
+    var seen = {};
+    var i;
+    for (i = 0; i < 20; i++) {
+      var v = Number(vo[i]);
+      if (isNaN(v) || v < 1 || v > 20 || seen[v]) return false;
+      seen[v] = true;
+    }
+    return true;
+  }
+
+  /** Up to three upcoming wedge numbers for this round (from state). */
+  function roundTriple() {
+    var mode = state.mode;
     var t = [];
     var i;
+    if (mode === 'random') {
+      var vo = state.visitOrder;
+      var pi = state.progressIndex;
+      if (!vo || vo.length !== 20) return t;
+      for (i = 0; i < MAX_THROWS_PER_ROUND && pi + i < 20; i++) t.push(vo[pi + i]);
+      return t;
+    }
+    var nextReq = state.nextRequired;
     if (mode === 'asc') {
       for (i = 0; i < MAX_THROWS_PER_ROUND && nextReq + i <= 20; i++) t.push(nextReq + i);
     } else {
@@ -223,12 +262,34 @@
    * Next wedge a Hit would refer to after applying current pending queue (miss does not advance).
    */
   function peekHitButtonTarget() {
-    var nr = state.nextRequired;
     var mode = state.mode;
+    var nr;
+    var pidx;
+    var vo;
+    if (mode === 'random') {
+      vo = state.visitOrder;
+      pidx = state.progressIndex;
+      if (!vo || vo.length !== 20 || pidx > 19) {
+        return { labelNr: null, canHit: false };
+      }
+      nr = vo[pidx];
+    } else {
+      nr = state.nextRequired;
+    }
+
     var i;
     for (i = 0; i < state.pendingRound.length; i++) {
       if (state.pendingRound[i] === 'miss') continue;
-      if (mode === 'asc') {
+      if (mode === 'random') {
+        if (pidx >= 19) {
+          return { labelNr: null, canHit: false };
+        }
+        pidx += 1;
+        if (pidx >= 20) {
+          return { labelNr: null, canHit: false };
+        }
+        nr = vo[pidx];
+      } else if (mode === 'asc') {
         if (nr === 20) {
           return { labelNr: null, canHit: false };
         }
@@ -249,7 +310,7 @@
   }
 
   function renderRoundVisuals(triple, activeSectorOverride) {
-    var list = triple || roundTriple(state.nextRequired, state.mode);
+    var list = triple || roundTriple();
     var next =
       typeof activeSectorOverride === 'number'
         ? activeSectorOverride
@@ -260,8 +321,17 @@
 
   /** Pending line with wedge numbers, e.g. "Hit 4 → Miss 5 → Hit 6". */
   function formatPendingWithWedges() {
-    var nr = state.nextRequired;
     var mode = state.mode;
+    var nr;
+    var pidx;
+    var vo;
+    if (mode === 'random') {
+      vo = state.visitOrder;
+      pidx = state.progressIndex;
+      nr = vo[pidx];
+    } else {
+      nr = state.nextRequired;
+    }
     var parts = [];
     var i;
     for (i = 0; i < state.pendingRound.length; i++) {
@@ -269,7 +339,14 @@
         parts.push('Miss ' + nr);
       } else {
         parts.push('Hit ' + nr);
-        if (mode === 'asc') {
+        if (mode === 'random') {
+          if (pidx >= 19) {
+            pidx = 20;
+          } else {
+            pidx += 1;
+            nr = vo[pidx];
+          }
+        } else if (mode === 'asc') {
           if (nr === 20) nr = 21;
           else nr += 1;
         } else {
@@ -312,6 +389,17 @@
     if (state.phase !== 'playing') return 'ok';
     state.totalDarts += 1;
     state.dartsThisRound += 1;
+
+    if (state.mode === 'random') {
+      if (state.progressIndex === 19) {
+        state.progressIndex = 20;
+        return 'game-over';
+      }
+      state.progressIndex += 1;
+      state.nextRequired = state.visitOrder[state.progressIndex];
+      bumpRoundAfterThreeCommittedDarts();
+      return 'ok';
+    }
 
     if (state.mode === 'asc') {
       if (state.nextRequired === 20) {
@@ -382,35 +470,67 @@
     if (!s || typeof s !== 'object') return null;
     var phase = s.phase;
     if (phase !== 'setup' && phase !== 'playing' && phase !== 'finished') return null;
-    var mode = s.mode === 'desc' ? 'desc' : 'asc';
+    var mode =
+      s.mode === 'desc' ? 'desc' : s.mode === 'random' ? 'random' : 'asc';
     var name = typeof s.playerName === 'string' ? s.playerName : '';
     var nr = Number(s.nextRequired);
     var td = Number(s.totalDarts);
     var dtr = Number(s.dartsThisRound);
     var rn = Number(s.roundNumber);
+    var pIx = Number(s.progressIndex);
+
     if (phase === 'playing') {
       if (isNaN(td) || td < 0) return null;
       if (isNaN(dtr) || dtr < 0 || dtr > MAX_THROWS_PER_ROUND) return null;
       if (isNaN(rn) || rn < 1) return null;
-      if (isNaN(nr) || nr < 1 || nr > 20) return null;
+      if (mode === 'random') {
+        if (!validateVisitOrderStructure(s.visitOrder)) return null;
+        if (isNaN(pIx) || pIx < 0 || pIx > 19) return null;
+        var vo = s.visitOrder;
+        if (isNaN(nr) || nr !== vo[pIx]) return null;
+      } else {
+        if (isNaN(nr) || nr < 1 || nr > 20) return null;
+      }
     }
     if (phase === 'finished') {
       if (isNaN(td) || td < 0) return null;
       if (isNaN(nr)) return null;
-      if (mode === 'asc' && (nr < 21 || nr > 21)) return null;
-      if (mode === 'desc' && nr !== 0) return null;
+      if (mode === 'random') {
+        if (!validateVisitOrderStructure(s.visitOrder)) return null;
+        if (isNaN(pIx) || pIx !== 20) return null;
+      } else if (mode === 'asc' && (nr < 21 || nr > 21)) return null;
+      else if (mode === 'desc' && nr !== 0) return null;
     }
     var pendingRound = normalizePendingArray(s.pendingRound, dtr);
+
+    var visitOrder =
+      mode === 'random' && validateVisitOrderStructure(s.visitOrder)
+        ? s.visitOrder.slice()
+        : null;
+    var progressIndex =
+      mode === 'random'
+        ? isNaN(pIx)
+          ? 0
+          : pIx
+        : 0;
 
     return {
       phase: phase,
       mode: mode,
       playerName: name,
-      nextRequired: isNaN(nr) ? (mode === 'asc' ? 1 : 20) : nr,
+      nextRequired: isNaN(nr)
+        ? mode === 'asc'
+          ? 1
+          : mode === 'desc'
+            ? 20
+            : 1
+        : nr,
       totalDarts: isNaN(td) ? 0 : td,
       dartsThisRound: isNaN(dtr) ? 0 : dtr,
       roundNumber: isNaN(rn) ? 1 : rn,
       pendingRound: phase === 'playing' ? pendingRound : [],
+      visitOrder: visitOrder,
+      progressIndex: progressIndex,
     };
   }
 
@@ -429,7 +549,7 @@
     $('#stat-player').text(state.playerName || '—');
     var previewTotalDarts = state.totalDarts + state.pendingRound.length;
     $('#stat-total-darts').text(String(previewTotalDarts));
-    var triple = roundTriple(state.nextRequired, state.mode);
+    var triple = roundTriple();
     var wedgeCount = triple.length;
     var peek = peekHitButtonTarget();
     var highlightSector =
@@ -460,6 +580,42 @@
       state.dartsThisRound < MAX_THROWS_PER_ROUND &&
       !hasPending;
     $('#btn-nn').toggleClass('d-none', !showNN);
+
+    updateRandomProgress();
+  }
+
+  /**
+   * Random mode: wedge count for progress preview = committed progressIndex plus
+   * simulated Hit outcomes in pending (Miss does not advance). Matches Reset/Confirm behaviour.
+   */
+  function randomPreviewClearedAfterPending() {
+    var pidx = state.progressIndex;
+    var i;
+    for (i = 0; i < state.pendingRound.length; i++) {
+      if (state.pendingRound[i] === 'miss') continue;
+      if (pidx >= 19) {
+        return 20;
+      }
+      pidx += 1;
+    }
+    return Math.min(20, pidx);
+  }
+
+  /** Progress bar for Random mode — updates live with Hit/Miss/Reset (pending preview). */
+  function updateRandomProgress() {
+    var $card = $('#random-progress-card');
+    if (!$card.length) return;
+    var show = state.phase === 'playing' && state.mode === 'random';
+    $card.toggleClass('d-none', !show);
+    if (!show) return;
+    var cleared = randomPreviewClearedAfterPending();
+    var pct = (cleared / 20) * 100;
+    $('#random-progress-fill').css('width', pct + '%');
+    $('#random-progress').attr({
+      'aria-valuenow': String(cleared),
+      'aria-valuetext': cleared + ' of 20 wedges cleared (includes pending)',
+    });
+    $('#random-progress-label').text(cleared + ' / 20');
   }
 
   function startGameFromSetup() {
@@ -468,13 +624,18 @@
       alert('Enter your name.');
       return;
     }
-    var mode = $('input[name="setup-mode"]:checked').val() === 'desc' ? 'desc' : 'asc';
+    var sel = $('input[name="setup-mode"]:checked').val();
+    var mode =
+      sel === 'desc' ? 'desc' : sel === 'random' ? 'random' : 'asc';
     saveLastNames([name]);
 
     state.phase = 'playing';
     state.playerName = name;
     state.mode = mode;
-    state.nextRequired = mode === 'asc' ? 1 : 20;
+    state.visitOrder = mode === 'random' ? shuffleVisitOrder() : null;
+    state.progressIndex = mode === 'random' ? 0 : 0;
+    state.nextRequired =
+      mode === 'asc' ? 1 : mode === 'desc' ? 20 : state.visitOrder[0];
     state.totalDarts = 0;
     state.dartsThisRound = 0;
     state.roundNumber = 1;
@@ -495,6 +656,8 @@
     state.dartsThisRound = 0;
     state.roundNumber = 1;
     state.pendingRound = [];
+    state.visitOrder = null;
+    state.progressIndex = 0;
     var last = loadLastNames();
     $('#setup-player-name').val(last.length ? last[0] : 'Player 1');
     $('input[name="setup-mode"][value="asc"]').prop('checked', true);

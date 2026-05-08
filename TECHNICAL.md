@@ -64,4 +64,4 @@ Clears the saved session (`sessionStorage` game key), resets client state, retur
 
 ### around-the-world
 
-- **`sessionStorage`** key **`aroundWorldState`** — in-progress **playing** / **finished**; **`pendingRound`** holds unconfirmed Hit/Miss entries until **Confirm** (same refresh behaviour as other games).
+- **`sessionStorage`** key **`aroundWorldState`** — in-progress **playing** / **finished**; **`pendingRound`** holds unconfirmed Hit/Miss entries until **Confirm** (same refresh behaviour as other games). **Random** mode also stores **`visitOrder`** (permutation of 1–20) and **`progressIndex`**.
