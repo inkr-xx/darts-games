@@ -733,7 +733,7 @@
         (function (idx) {
           var row = $('<div class="mb-3"></div>');
           var sel = pending.mults[idx];
-          var btnRow = $('<div class="d-flex flex-wrap gap-2"></div>');
+          var btnRow = $('<div class="row g-2"></div>');
           [
             { m: 0, label: 'Miss', cls: 'btn-outline-secondary' },
             { m: 1, label: 'Single', cls: 'btn-outline-primary' },
@@ -746,7 +746,9 @@
               .text(L.label)
               .attr('data-throw-idx', idx)
               .attr('data-mult', L.m);
-            btnRow.append(b);
+            btnRow.append(
+              $('<div class="col-6 col-sm-auto d-grid"></div>').append(b)
+            );
           });
           row.append(btnRow);
           $panel.append(row);
@@ -760,7 +762,7 @@
         (function (idx) {
           var row = $('<div class="mb-3"></div>');
           var sel = pending.vals[idx];
-          var btnRow = $('<div class="d-flex flex-wrap gap-2"></div>');
+          var btnRow = $('<div class="row g-2"></div>');
           [
             { v: 0, label: 'Miss', cls: 'btn-outline-secondary' },
             { v: 25, label: '25', cls: 'btn-outline-success' },
@@ -772,7 +774,9 @@
               .text(L.label)
               .attr('data-bull-idx', idx)
               .attr('data-bull-val', L.v);
-            btnRow.append(b);
+            btnRow.append(
+              $('<div class="col-4 col-sm-auto d-grid"></div>').append(b)
+            );
           });
           row.append(btnRow);
           $panel.append(row);
