@@ -1,0 +1,40 @@
+/* Around the world — game-specific overrides only */
+
+/* Reserve space so Hit/Miss row does not jump when pending text appears.
+   Anchor copy toward Confirm (bottom), not centered toward Hit row. */
+.pending-hint-slot {
+  min-height: 2.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* Same as follow-sector: hide duplicate SVG wedge label */
+#dartboard-wedge-label {
+  visibility: hidden !important;
+}
+
+/* Wedges in this round but not yet active — softer highlight */
+.dart-sector--round-secondary {
+  fill: rgba(255, 193, 7, 0.42) !important;
+  stroke: #ef6c00 !important;
+  stroke-width: 1.35 !important;
+}
+
+.round-wedge-num {
+  font-weight: 800;
+  font-size: clamp(1.45rem, 6.5vw, 2.2rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--bs-secondary);
+}
+
+.round-wedge-num--active {
+  color: var(--bs-primary);
+}
+
+.round-wedge-sep {
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+}
