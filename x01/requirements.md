@@ -1,0 +1,23 @@
+# 301 or 501 game
+
+- Classical X01 countdown game from 301 or 501.
+- Default setup is 301, direct in, direct out.
+- 1..n players.
+- Game setup supports a single game or best of N games.
+- Start condition can be selected:
+  - Direct in: players can score immediately.
+  - Double in: players must open on a double; players are responsible for counting that correctly.
+- End condition can be selected:
+  - Direct out: a player wins by reaching exactly 0.
+  - Double out: a player must finish on a double; players are responsible for counting the finishing dart correctly.
+- Bullseye 50 is double 25.
+- Each turn is one three-dart round total; score is subtracted from the player's remaining score.
+- App records only the round total, not individual dart throws.
+- Players may press Busted without inserting a score.
+- If an inserted score is a numeric bust, Confirm is disabled.
+- Numeric bust rules:
+  - round score exceeds the remaining points;
+  - double-out game leaves remaining score 1.
+- When a player is busted, round points are not counted.
+- Game score insert view is same as min/max game: calculator-style buttons, Confirm button, and Busted button.
+- UI and code requirements must follow existing games pattern.

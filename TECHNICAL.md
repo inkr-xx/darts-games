@@ -1,6 +1,6 @@
 # Darts apps — shared technical specification
 
-Applies to **follow-sector**, **random-sector**, **max-game**, **min-game**, and **around-the-world** unless noted.
+Applies to **follow-sector**, **random-sector**, **max-game**, **min-game**, **around-the-world**, and **x01** unless noted.
 
 ## Stack & delivery
 
@@ -17,6 +17,7 @@ Applies to **follow-sector**, **random-sector**, **max-game**, **min-game**, and
 | **`max-game/`** | `index.html`, `app.js`, `styles.css` |
 | **`min-game/`** | `index.html`, `app.js`, `styles.css` |
 | **`around-the-world/`** | `index.html`, `app.js`, `styles.css` |
+| **`x01/`** | `index.html`, `app.js`, `styles.css` |
 
 Each game page loads styles in order:
 
@@ -65,3 +66,8 @@ Clears the saved session (`sessionStorage` game key), resets client state, retur
 ### around-the-world
 
 - **`sessionStorage`** key **`aroundWorldState`** — in-progress **playing** / **finished**; **`pendingRound`** holds unconfirmed Hit/Miss entries until **Confirm** (same refresh behaviour as other games). **Random** mode also stores **`visitOrder`** (permutation of 1–20) and **`progressIndex`**.
+
+### x01
+
+- **`sessionStorage`** key **`x01GameState`** — in-progress **playing** / **finished**. **`pending`** uses the same keypad **`{ buffer: string }`** shape as **max-game** and **min-game**.
+- Supports 301/501, direct/double in, direct/double out, single game, and best-of 3/5/7 games. The app validates numeric busts from the round total; players use **Busted** for rule busts that require dart-level knowledge.
