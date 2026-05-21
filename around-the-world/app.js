@@ -21,7 +21,71 @@
     visitOrder: null,
     /** Mode random only: index 0..19 = current target in visitOrder; 20 = finished. */
     progressIndex: 0,
+    /** Darts thrown per sector 1–20 while that sector was active (hits and misses). */
+    sectorThrows: null,
   };
+
+  function freshSectorThrows() {
+    var throws = {};
+    var i;
+    for (i = 1; i <= 20; i++) throws[i] = 0;
+    return throws;
+  }
+
+  function ensureSectorThrows() {
+    if (!state.sectorThrows || typeof state.sectorThrows !== 'object') {
+      if (state.sectorHits && typeof state.sectorHits === 'object') {
+        state.sectorThrows = state.sectorHits;
+        delete state.sectorHits;
+      } else {
+        state.sectorThrows = freshSectorThrows();
+      }
+      return;
+    }
+    var i;
+    for (i = 1; i <= 20; i++) {
+      if (typeof state.sectorThrows[i] !== 'number') state.sectorThrows[i] = 0;
+    }
+  }
+
+  function sectorThrowCount(sector) {
+    ensureSectorThrows();
+    var n = state.sectorThrows[sector];
+    return typeof n === 'number' ? n : 0;
+  }
+
+  function recordSectorThrow(sector) {
+    if (sector < 1 || sector > 20) return;
+    ensureSectorThrows();
+    state.sectorThrows[sector] = sectorThrowCount(sector) + 1;
+  }
+
+  /** Wedge number for the next confirmed Hit. */
+  function currentHitSector() {
+    if (state.mode === 'random' && state.visitOrder && state.visitOrder.length === 20) {
+      var pi = state.progressIndex;
+      if (pi < 0 || pi > 19) return null;
+      return state.visitOrder[pi];
+    }
+    var nr = state.nextRequired;
+    return nr >= 1 && nr <= 20 ? nr : null;
+  }
+
+  /** Sector numbers in display order for the scoreboard (visit sequence). */
+  function scoreboardSectorRows() {
+    if (state.mode === 'random' && state.visitOrder && state.visitOrder.length === 20) {
+      return state.visitOrder.slice();
+    }
+    if (state.mode === 'desc') {
+      var desc = [];
+      var i;
+      for (i = 20; i >= 1; i--) desc.push(i);
+      return desc;
+    }
+    var asc = [];
+    for (i = 1; i <= 20; i++) asc.push(i);
+    return asc;
+  }
 
   function saveGame() {
     try {
@@ -358,10 +422,40 @@
     return parts.join(' → ');
   }
 
+  function renderSectorScoreboard() {
+    ensureSectorThrows();
+    var $table = $('#sector-hits-table');
+    if (!$table.length) return;
+
+    var $thead = $table.find('thead').empty();
+    var $tbody = $table.find('tbody').empty();
+    var $headRow = $('<tr></tr>');
+    $headRow.append($('<th scope="col"></th>').text('Sector'));
+    $headRow.append($('<th scope="col" class="text-end"></th>').text('Throws'));
+    $thead.append($headRow);
+
+    var sectors = scoreboardSectorRows();
+    var si;
+    for (si = 0; si < sectors.length; si++) {
+      var sector = sectors[si];
+      var throws = sectorThrowCount(sector);
+      var $row = $('<tr></tr>');
+      $row.append($('<th scope="row"></th>').text(String(sector)));
+      $row.append($('<td class="text-end"></td>').text(String(throws)));
+      $tbody.append($row);
+    }
+
+    var $totalRow = $('<tr class="table-light fw-semibold"></tr>');
+    $totalRow.append($('<th scope="row"></th>').text('Total darts'));
+    $totalRow.append($('<td class="text-end"></td>').text(String(state.totalDarts)));
+    $tbody.append($totalRow);
+  }
+
   function gameFinished() {
     state.phase = 'finished';
     saveGame();
     $('#final-dart-count').text(String(state.totalDarts));
+    renderSectorScoreboard();
     showScreen('screen-finished');
   }
 
@@ -376,6 +470,8 @@
   /** Apply one confirmed miss; mutates state. */
   function applyCommittedMiss() {
     if (state.phase !== 'playing') return;
+    var missSector = currentHitSector();
+    if (missSector !== null) recordSectorThrow(missSector);
     state.totalDarts += 1;
     state.dartsThisRound += 1;
     bumpRoundAfterThreeCommittedDarts();
@@ -387,6 +483,8 @@
    */
   function applyCommittedHit() {
     if (state.phase !== 'playing') return 'ok';
+    var hitSector = currentHitSector();
+    if (hitSector !== null) recordSectorThrow(hitSector);
     state.totalDarts += 1;
     state.dartsThisRound += 1;
 
@@ -531,6 +629,12 @@
       pendingRound: phase === 'playing' ? pendingRound : [],
       visitOrder: visitOrder,
       progressIndex: progressIndex,
+      sectorThrows:
+        s.sectorThrows && typeof s.sectorThrows === 'object'
+          ? s.sectorThrows
+          : s.sectorHits && typeof s.sectorHits === 'object'
+            ? s.sectorHits
+            : freshSectorThrows(),
     };
   }
 
@@ -640,6 +744,7 @@
     state.dartsThisRound = 0;
     state.roundNumber = 1;
     state.pendingRound = [];
+    state.sectorThrows = freshSectorThrows();
 
     saveGame();
     renderGame();
@@ -658,6 +763,7 @@
     state.pendingRound = [];
     state.visitOrder = null;
     state.progressIndex = 0;
+    state.sectorThrows = null;
     var last = loadLastNames();
     $('#setup-player-name').val(last.length ? last[0] : 'Player 1');
     $('input[name="setup-mode"][value="asc"]').prop('checked', true);
@@ -675,6 +781,7 @@
     if (state.phase === 'setup') return;
     if (state.phase === 'finished') {
       $('#final-dart-count').text(String(state.totalDarts));
+      renderSectorScoreboard();
       showScreen('screen-finished');
       return;
     }

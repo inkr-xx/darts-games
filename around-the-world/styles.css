@@ -27,6 +27,14 @@
 }
 
 /* Wedges in this round but not yet active — softer highlight */
+#sector-hits-table th[scope='row'] {
+  font-weight: 600;
+}
+
+#sector-hits-table thead th {
+  white-space: nowrap;
+}
+
 .dart-sector--round-secondary {
   fill: rgba(255, 193, 7, 0.42) !important;
   stroke: #ef6c00 !important;
