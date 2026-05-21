@@ -24,7 +24,85 @@
         neededWins: 1,
       },
       pending: null,
+      /** Archived visit grids per completed game in the match. */
+      gameBoards: [],
     };
+  }
+
+  function freshVisitResults() {
+    return [];
+  }
+
+  function ensureVisitResults(p) {
+    if (!p) return;
+    if (!Array.isArray(p.visitResults)) p.visitResults = freshVisitResults();
+  }
+
+  function recordVisitResult(p, value) {
+    if (!p) return;
+    ensureVisitResults(p);
+    p.visitResults.push(value);
+  }
+
+  function formatVisitCell(value) {
+    if (value === 'busted') return 'Busted';
+    if (typeof value === 'number') return String(value);
+    return '—';
+  }
+
+  function snapshotCurrentGameBoard() {
+    var maxVisits = 0;
+    var i;
+    for (i = 0; i < state.players.length; i++) {
+      ensureVisitResults(state.players[i]);
+      if (state.players[i].visitResults.length > maxVisits) {
+        maxVisits = state.players[i].visitResults.length;
+      }
+    }
+    if (maxVisits === 0) return null;
+    return {
+      gameNumber: state.gameNumber,
+      players: state.players.map(function (p) {
+        return {
+          id: p.id,
+          name: p.name,
+          visitResults: p.visitResults.slice(),
+        };
+      }),
+      maxVisits: maxVisits,
+    };
+  }
+
+  function archiveCurrentGameBoard() {
+    var snap = snapshotCurrentGameBoard();
+    if (!snap) return;
+    if (!Array.isArray(state.gameBoards)) state.gameBoards = [];
+    var gi;
+    for (gi = 0; gi < state.gameBoards.length; gi++) {
+      if (state.gameBoards[gi].gameNumber === snap.gameNumber) return;
+    }
+    state.gameBoards.push(snap);
+  }
+
+  function allGameBoardsForDisplay() {
+    var boards = Array.isArray(state.gameBoards) ? state.gameBoards.slice() : [];
+    var current = snapshotCurrentGameBoard();
+    if (current) {
+      var found = false;
+      var bi;
+      for (bi = 0; bi < boards.length; bi++) {
+        if (boards[bi].gameNumber === current.gameNumber) {
+          boards[bi] = current;
+          found = true;
+          break;
+        }
+      }
+      if (!found) boards.push(current);
+    }
+    boards.sort(function (a, b) {
+      return a.gameNumber - b.gameNumber;
+    });
+    return boards;
   }
 
   function saveGame() {
@@ -89,6 +167,10 @@
 
   function isDoubleOut() {
     return state.config && state.config.outMode === 'double';
+  }
+
+  function isSingleGameMatch() {
+    return state.config && state.config.bestOf === 1;
   }
 
   function neededWins(bestOf) {
@@ -176,6 +258,7 @@
         score: startScore,
         gamesWon: 0,
         isIn: $('#setup-in-mode').val() !== 'double',
+        visitResults: freshVisitResults(),
       });
     });
 
@@ -185,6 +268,7 @@
       fixedPlayerIds: fixed,
       turnIndex: 0,
       gameNumber: 1,
+      gameBoards: [],
       config: {
         startScore: startScore,
         inMode: $('#setup-in-mode').val() === 'double' ? 'double' : 'direct',
@@ -201,10 +285,12 @@
   }
 
   function beginNextGame() {
+    archiveCurrentGameBoard();
     state.gameNumber += 1;
     state.players.forEach(function (p) {
       p.score = state.config.startScore;
       p.isIn = state.config.inMode !== 'double';
+      p.visitResults = freshVisitResults();
     });
     state.turnIndex = 0;
     state.pending = freshPendingTurn();
@@ -230,16 +316,20 @@
   function renderScoreTable($tbody) {
     $tbody.empty();
     var curId = state.phase === 'playing' ? state.fixedPlayerIds[state.turnIndex] : null;
+    var showGamesCol = !isSingleGameMatch();
     $('.in-status-col').toggleClass('d-none', !isDoubleIn());
+    $('#score-table .games-won-col').toggleClass('d-none', !showGamesCol);
 
     state.players.forEach(function (p) {
       var row = $('<tr></tr>');
       if (p.id === curId) row.addClass('table-primary');
       row.append(
         $('<th scope="row"></th>').text(p.name),
-        $('<td class="text-end fw-semibold"></td>').text(p.score),
-        $('<td class="text-end"></td>').text(p.gamesWon)
+        $('<td class="text-end fw-semibold"></td>').text(p.score)
       );
+      if (showGamesCol) {
+        row.append($('<td class="text-end games-won-col"></td>').text(p.gamesWon));
+      }
       var status = p.isIn ? 'Open' : 'Need double';
       row.append($('<td class="text-end small in-status-col"></td>').toggleClass('d-none', !isDoubleIn()).text(status));
       $tbody.append(row);
@@ -297,9 +387,12 @@
     var buf = pending && typeof pending.buffer === 'string' ? pending.buffer : '';
     var result = turnValidation(p, buf);
     var $btn = $('#btn-confirm-turn');
+    var $busted = $('#btn-busted-turn');
     var $hint = $('#turn-hint');
+    var bustedAllowed = !!(p && p.score <= MAX_VISIT_SCORE);
 
     $btn.prop('disabled', !result.ok);
+    $busted.prop('disabled', !bustedAllowed);
     if (!buf.length) {
       $btn.text('Confirm turn - -');
     } else {
@@ -317,7 +410,12 @@
     }
 
     var status = '';
-    if (isDoubleIn() && !p.isIn) {
+    if (!bustedAllowed) {
+      status =
+        'Remaining score is above ' +
+        MAX_VISIT_SCORE +
+        ' — enter a round total (bust from overscoring is not possible this visit).';
+    } else if (isDoubleIn() && !p.isIn) {
       status = 'Double-in game: only confirm once the player has opened on a double. Press Busted for a failed opening visit.';
     } else if (isDoubleOut()) {
       status = 'Double-out game: players must finish on a double. Press Busted if the finishing dart was not a double.';
@@ -366,10 +464,12 @@
     if (!isDoubleIn() || p.isIn) {
       p.score -= result.score;
     }
+    recordVisitResult(p, p.score);
 
     if (p.score === 0) {
       p.gamesWon += 1;
       if (p.gamesWon >= state.config.neededWins) {
+        archiveCurrentGameBoard();
         state.phase = 'finished';
         state.pending = null;
         saveGame();
@@ -388,6 +488,9 @@
 
   function bustedTurn() {
     if (state.phase !== 'playing') return;
+    var p = currentPlayer();
+    if (!p || p.score > MAX_VISIT_SCORE) return;
+    recordVisitResult(p, 'busted');
     advanceTurn();
     saveGame();
     renderGame();
@@ -409,7 +512,68 @@
     return 'th';
   }
 
+  function renderVisitScoreboards() {
+    var $host = $('#visit-scoreboards-wrap');
+    if (!$host.length) return;
+    $host.empty();
+
+    var boards = allGameBoardsForDisplay();
+    if (!boards.length) {
+      $host.addClass('d-none');
+      return;
+    }
+    $host.removeClass('d-none');
+
+    var showGameTitle = boards.length > 1 || (state.config && state.config.bestOf > 1);
+    boards.forEach(function (board) {
+      if (showGameTitle) {
+        $host.append(
+          $('<h3 class="h6 text-muted text-uppercase mb-2 mt-3 letter-spacing-tight"></h3>').text(
+            'Game ' + board.gameNumber
+          )
+        );
+      } else {
+        $host.append(
+          $('<h3 class="h6 text-muted text-uppercase mb-2 letter-spacing-tight"></h3>').text(
+            'Visit scores'
+          )
+        );
+      }
+
+      var $table = $(
+        '<table class="table table-sm table-bordered table-striped mb-0 align-middle visit-scoreboard-table"></table>'
+      );
+      var $thead = $('<thead></thead>');
+      var $tbody = $('<tbody></tbody>');
+      var $headRow = $('<tr></tr>');
+      $headRow.append($('<th scope="col"></th>').text('Round'));
+      board.players.forEach(function (bp) {
+        $headRow.append($('<th scope="col" class="text-end"></th>').text(bp.name));
+      });
+      $thead.append($headRow);
+
+      var vr;
+      for (vr = 0; vr < board.maxVisits; vr++) {
+        var $row = $('<tr></tr>');
+        $row.append($('<th scope="row"></th>').text(String(vr + 1)));
+        board.players.forEach(function (bp) {
+          var val =
+            bp.visitResults && vr < bp.visitResults.length ? bp.visitResults[vr] : null;
+          var $cell = $('<td class="text-end"></td>').text(formatVisitCell(val));
+          if (val === 'busted') $cell.addClass('text-danger');
+          $row.append($cell);
+        });
+        $tbody.append($row);
+      }
+
+      $table.append($thead, $tbody);
+      $host.append($('<div class="table-responsive shadow-sm mb-3"></div>').append($table));
+    });
+  }
+
   function renderFinished() {
+    renderVisitScoreboards();
+    var singleGame = isSingleGameMatch();
     var sorted = state.players
       .map(function (p) {
         return { id: p.id, name: p.name, score: p.score, gamesWon: p.gamesWon };
@@ -418,15 +582,17 @@
 
     var rowsWithRank = [];
     var displayRank = 0;
-    var prevWins = null;
+    var prevKey = null;
     sorted.forEach(function (row, idx) {
-      if (prevWins === null || row.gamesWon !== prevWins) {
+      var rankKey = singleGame ? row.score : row.gamesWon;
+      if (prevKey === null || rankKey !== prevKey) {
         displayRank = idx + 1;
       }
-      prevWins = row.gamesWon;
+      prevKey = rankKey;
       rowsWithRank.push({
         rank: displayRank,
         name: row.name,
+        score: row.score,
         gamesWon: row.gamesWon,
       });
     });
@@ -434,7 +600,7 @@
     var byRank = {};
     rowsWithRank.forEach(function (r) {
       if (!byRank[r.rank]) byRank[r.rank] = [];
-      byRank[r.rank].push({ name: r.name, gamesWon: r.gamesWon });
+      byRank[r.rank].push({ name: r.name, score: r.score, gamesWon: r.gamesWon });
     });
 
     var first = byRank[1] || [];
@@ -452,7 +618,7 @@
       var $names = $('<div class="podium-names"></div>').text(namesText);
       if (empty) $names.addClass('podium-names--empty');
       $top.append($names);
-      if (!empty) {
+      if (!empty && !singleGame) {
         $top.append($('<div class="podium-score-pill"></div>').text(rows[0].gamesWon + ' games'));
       }
       $col.append($top);
@@ -474,10 +640,16 @@
         anyRest = true;
         var label = r.rank + ordinalSuffix(r.rank) + ' - ' + r.name;
         var li = $('<li class="list-group-item d-flex justify-content-between align-items-center"></li>');
-        li.append(
-          $('<span></span>').text(label),
-          $('<span class="badge bg-secondary rounded-pill"></span>').text(r.gamesWon + ' games')
-        );
+        li.append($('<span></span>').text(label));
+        if (!singleGame) {
+          li.append(
+            $('<span class="badge bg-secondary rounded-pill"></span>').text(r.gamesWon + ' games')
+          );
+        } else {
+          li.append(
+            $('<span class="badge bg-secondary rounded-pill"></span>').text(r.score + ' remaining')
+          );
+        }
         $rest.append(li);
       }
     });
@@ -513,7 +685,9 @@
         if (typeof p.score !== 'number') p.score = state.config.startScore;
         if (typeof p.gamesWon !== 'number') p.gamesWon = 0;
         if (typeof p.isIn !== 'boolean') p.isIn = state.config.inMode !== 'double';
+        ensureVisitResults(p);
       });
+      if (!Array.isArray(state.gameBoards)) state.gameBoards = [];
       if (!state.fixedPlayerIds || !state.fixedPlayerIds.length) {
         state.fixedPlayerIds = state.players.map(function (p) { return p.id; });
       }

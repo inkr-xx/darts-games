@@ -25,3 +25,11 @@
 #turn-hint {
   min-height: 1.25rem;
 }
+
+.visit-scoreboard-table th[scope='row'] {
+  font-weight: 600;
+}
+
+.visit-scoreboard-table thead th {
+  white-space: nowrap;
+}
