@@ -17,7 +17,7 @@ A seven-round scorekeeper: each round everyone throws at the **same** target. Ro
 Each round:
 
 1. The app sets the round target: **random wedge 1–20** on rounds **1–6**, **bull** on round **7**.
-2. Everyone throws **three darts** in setup order, records **Miss / Single / Double / Triple** on a wedge target, or **Miss / 5 / 15** when the target is **bull**, then **Confirm turn**.
+2. Everyone throws **three darts** in setup order, records a **turn score 0–9** on a wedge target, or **Miss / 5 / 10** when the target is **bull**, then **Confirm turn**.
 3. When the last player confirms, the **next round** starts automatically with the **next** target.
 
 ### Scoring (game points — not full dartboard face value)
@@ -37,7 +37,7 @@ Each round:
 |------------|----------------------|
 | Miss       | 0                    |
 | **5**      | 5 (outer bull)       |
-| **15**     | 15 (bullseye)        |
+| **10**     | 10 (bullseye)        |
 
 Your **total score** is the sum of all these dart points across all rounds.
 
@@ -45,13 +45,9 @@ Your **total score** is the sum of all these dart points across all rounds.
 
 ## Who wins if points are tied?
 
-There is **no** extra throwing round. If two or more players are tied on **total score**, places are decided by:
+There is **no** extra throwing round. If two or more players are tied on **total score**, places are decided by **round scores**, highest first: compare **round 7**, then **round 6**, and so on down to **round 1**.
 
-1. Most **triple** hits on wedge rounds (multiplier “Triple” on the target wedge),
-2. then most **double** hits,
-3. then most **single** hits.
-
-If **everything** matches, they **tie** for that place.
+If **everything** matches (including all seven round scores), they **tie** for that place.
 
 ---
 

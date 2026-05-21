@@ -12,6 +12,8 @@
     roundTarget: null,
     /** Sector numbers 1–20 already used in completed wedge rounds (rounds 1–6). */
     usedWedgeNumbers: [],
+    /** Target per round index 0..6 (wedge number or bull). */
+    roundTargets: [],
     roundPlayerIds: [],
     turnIndex: 0,
     pending: null,
@@ -258,7 +260,7 @@
     $('#dartboard-aria-title').text('Dartboard — bull is the target');
     $('#dartboard-svg').attr(
       'aria-label',
-      'Dartboard; outer bull 5 points, bullseye 15 points'
+      'Dartboard; outer bull 5 points, bullseye 10 points'
     );
     updateBoardTargetDisplay({ k: 'bull' });
   }
@@ -306,35 +308,113 @@
     return null;
   }
 
-  /** Wedge rounds: single = 1 pt, double = 2, triple = 3 (miss = 0). */
-  function wedgeMultPoints(mults) {
-    return mults.reduce(function (sum, m) {
-      return sum + (typeof m === 'number' ? m : 0);
-    }, 0);
+  function freshSectorPending() {
+    return { type: 'sector', turnScore: null };
   }
 
-  /** Bull round: outer bull = 5 pts, bullseye = 15 pts. */
+  /** Wedge rounds: one turn total 0–9 (all three darts combined). */
+  function wedgeTurnPoints(turnScore) {
+    return typeof turnScore === 'number' ? turnScore : 0;
+  }
+
+  /** Bull round: outer bull = 5 pts, bullseye = 10 pts. */
   function bullValsPoints(vals) {
     return vals.reduce(function (sum, v) {
       return sum + (typeof v === 'number' ? v : 0);
     }, 0);
   }
 
-  function applySectorMultStats(p, mults) {
-    if (!p || !mults) return;
-    for (var i = 0; i < mults.length; i++) {
-      var m = mults[i];
-      if (m === 3) p.triples += 1;
-      else if (m === 2) p.doubles += 1;
-      else if (m === 1) p.singles += 1;
+  function applySectorTurnStats(p, turnScore) {
+    if (!p || typeof turnScore !== 'number') return;
+    if (turnScore === 3) p.triples += 1;
+    else if (turnScore === 2) p.doubles += 1;
+    else if (turnScore === 1) p.singles += 1;
+  }
+
+  var ROUND_COUNT = 7;
+
+  function freshRoundScores() {
+    var scores = [];
+    for (var i = 0; i < ROUND_COUNT; i++) scores.push(0);
+    return scores;
+  }
+
+  function cloneRoundTarget(t) {
+    if (!t) return null;
+    if (t.k === 'bull') return { k: 'bull' };
+    return { k: 'wedge', n: t.n };
+  }
+
+  function recordCurrentRoundTarget() {
+    if (!Array.isArray(state.roundTargets)) state.roundTargets = [];
+    var idx = Math.max(0, Math.min(ROUND_COUNT - 1, (Number(state.round) || 1) - 1));
+    state.roundTargets[idx] = cloneRoundTarget(state.roundTarget);
+  }
+
+  function ensureRoundTargets() {
+    if (Array.isArray(state.roundTargets) && state.roundTargets.length === ROUND_COUNT) {
+      var complete = true;
+      for (var i = 0; i < ROUND_COUNT; i++) {
+        var t = state.roundTargets[i];
+        if (i === ROUND_COUNT - 1) {
+          if (!t || t.k !== 'bull') complete = false;
+        } else if (!t || t.k !== 'wedge' || typeof t.n !== 'number') {
+          complete = false;
+        }
+      }
+      if (complete) return;
     }
+    var targets = [];
+    ensureUsedWedgeNumbers();
+    var used = state.usedWedgeNumbers;
+    for (var w = 0; w < 6; w++) {
+      targets.push(w < used.length ? { k: 'wedge', n: used[w] } : { k: 'wedge', n: null });
+    }
+    targets.push({ k: 'bull' });
+    state.roundTargets = targets;
+  }
+
+  function roundTargetRowLabel(target) {
+    if (!target) return '—';
+    if (target.k === 'bull') return 'Bull';
+    if (typeof target.n === 'number') return String(target.n);
+    return '—';
+  }
+
+  function ensureRoundScores(p) {
+    if (!p) return;
+    if (!Array.isArray(p.roundScores) || p.roundScores.length !== ROUND_COUNT) {
+      p.roundScores = freshRoundScores();
+    }
+  }
+
+  function addRoundPoints(p, roundNum, pts) {
+    ensureRoundScores(p);
+    var idx = Math.max(0, Math.min(ROUND_COUNT - 1, roundNum - 1));
+    p.roundScores[idx] += pts;
+  }
+
+  /** When totals tie: higher round score wins, comparing rounds 7 → 1. */
+  function compareRoundScoresDesc(a, b) {
+    ensureRoundScores(a);
+    ensureRoundScores(b);
+    for (var r = ROUND_COUNT; r >= 1; r--) {
+      var ai = a.roundScores[r - 1] || 0;
+      var bi = b.roundScores[r - 1] || 0;
+      if (bi !== ai) return bi - ai;
+    }
+    return 0;
+  }
+
+  function standingRankKey(row) {
+    ensureRoundScores(row);
+    return row.score + '|' + row.roundScores.join(',');
   }
 
   function compareStanding(a, b) {
     if (b.score !== a.score) return b.score - a.score;
-    if (b.triples !== a.triples) return b.triples - a.triples;
-    if (b.doubles !== a.doubles) return b.doubles - a.doubles;
-    if (b.singles !== a.singles) return b.singles - a.singles;
+    var roundCmp = compareRoundScoresDesc(a, b);
+    if (roundCmp !== 0) return roundCmp;
     return state.fixedPlayerIds.indexOf(a.id) - state.fixedPlayerIds.indexOf(b.id);
   }
 
@@ -381,7 +461,15 @@
     names.forEach(function (name, i) {
       var id = 'p_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 7);
       fixed.push(id);
-      players.push({ id: id, name: name, score: 0, triples: 0, doubles: 0, singles: 0 });
+      players.push({
+        id: id,
+        name: name,
+        score: 0,
+        roundScores: freshRoundScores(),
+        triples: 0,
+        doubles: 0,
+        singles: 0,
+      });
     });
 
     state.phase = 'playing';
@@ -389,13 +477,15 @@
     state.fixedPlayerIds = fixed;
     state.round = 1;
     state.usedWedgeNumbers = [];
+    state.roundTargets = [];
     state.roundTarget = randomRoundTarget();
+    recordCurrentRoundTarget();
     state.roundPlayerIds = fixed.slice();
     state.turnIndex = 0;
     state.pending =
       state.roundTarget.k === 'bull'
         ? { type: 'bull', vals: [null, null, null] }
-        : { type: 'sector', mults: [null, null, null] };
+        : freshSectorPending();
 
     saveGame();
     renderGame();
@@ -405,12 +495,13 @@
   function beginRound(nextRound) {
     state.round = nextRound;
     state.roundTarget = randomRoundTarget();
+    recordCurrentRoundTarget();
     state.roundPlayerIds = state.fixedPlayerIds.slice();
     state.turnIndex = 0;
     state.pending =
       state.roundTarget.k === 'bull'
         ? { type: 'bull', vals: [null, null, null] }
-        : { type: 'sector', mults: [null, null, null] };
+        : freshSectorPending();
   }
 
   function afterRoundComplete() {
@@ -460,7 +551,12 @@
 
     var pid = state.roundPlayerIds[state.turnIndex];
     var p = playerById(pid);
-    setCurrentTurnHeader(p ? p.name : null, p ? ' — set throws' : '');
+    var actionTail = '';
+    if (p) {
+      actionTail =
+        state.roundTarget.k === 'bull' ? ' — set throws' : ' — enter turn score (0–9)';
+    }
+    setCurrentTurnHeader(p ? p.name : null, actionTail);
 
     renderThrowsPanel();
     updateConfirmEnabled();
@@ -473,30 +569,43 @@
     if (!pending) return;
 
     if (pending.type === 'sector') {
-      for (var i = 0; i < 3; i++) {
-        (function (idx) {
-          var row = $('<div class="mb-3"></div>');
-          var sel = pending.mults[idx];
-          var btnRow = $('<div class="row g-2"></div>');
-          var labels = [
-            { m: 0, label: 'Miss', cls: 'btn-outline-secondary' },
-            { m: 1, label: 'Single', cls: 'btn-outline-primary' },
-            { m: 2, label: 'Double', cls: 'btn-outline-primary' },
-            { m: 3, label: 'Triple', cls: 'btn-outline-primary' },
-          ];
-          labels.forEach(function (L) {
-            var active = sel === L.m;
-            var b = $('<button type="button" class="btn btn-lg throw-btn"></button>')
-              .addClass(active ? 'btn-primary' : L.cls)
-              .text(L.label)
-              .attr('data-throw-idx', idx)
-              .attr('data-mult', L.m);
-            btnRow.append($('<div class="col-6 col-sm-auto d-grid"></div>').append(b));
-          });
-          row.append(btnRow);
-          $panel.append(row);
-        })(i);
+      var sel = pending.turnScore;
+      var $wrap = $('<div class="visit-calculator"></div>');
+      var $pad = $('<div class="calc-keypad card bg-light border p-3"></div>');
+      var $grid = $('<div class="calc-keypad-grid"></div>');
+
+      function addDigitRow(nums) {
+        var $row = $('<div class="calc-keypad-row"></div>');
+        nums.forEach(function (num) {
+          var active = sel === num;
+          $row.append(
+            $('<button type="button" class="btn btn-lg sector-turn-digit"></button>')
+              .addClass(active ? 'btn-primary' : 'btn-outline-primary')
+              .text(String(num))
+              .attr('data-turn-score', num)
+          );
+        });
+        $grid.append($row);
       }
+
+      addDigitRow([1, 2, 3]);
+      addDigitRow([4, 5, 6]);
+      addDigitRow([7, 8, 9]);
+
+      var $bottom = $('<div class="calc-keypad-row calc-keypad-row--zero-row"></div>');
+      $bottom.append($('<span class="calc-keypad-placeholder" aria-hidden="true"></span>'));
+      $bottom.append(
+        $('<button type="button" class="btn btn-lg sector-turn-digit"></button>')
+          .addClass(sel === 0 ? 'btn-primary' : 'btn-outline-primary')
+          .text('0')
+          .attr('data-turn-score', 0)
+      );
+      $bottom.append($('<span class="calc-keypad-placeholder" aria-hidden="true"></span>'));
+      $grid.append($bottom);
+
+      $pad.append($grid);
+      $wrap.append($pad);
+      $panel.append($wrap);
     } else if (pending.type === 'bull') {
       for (var j = 0; j < 3; j++) {
         (function (idx) {
@@ -506,7 +615,7 @@
           [
             { v: 0, label: 'Miss', cls: 'btn-outline-secondary' },
             { v: 5, label: '5', cls: 'btn-outline-success' },
-            { v: 15, label: '15', cls: 'btn-outline-success' },
+            { v: 10, label: '10', cls: 'btn-outline-success' },
           ].forEach(function (L) {
             var active = sel === L.v;
             var b = $('<button type="button" class="btn btn-lg throw-btn"></button>')
@@ -528,13 +637,7 @@
     var pen = state.pending;
     if (!pen || state.phase !== 'playing') return false;
     if (pen.type === 'sector') {
-      return (
-        Array.isArray(pen.mults) &&
-        pen.mults.length === 3 &&
-        pen.mults.every(function (m) {
-          return m !== null && m !== undefined;
-        })
-      );
+      return pen.turnScore !== null && pen.turnScore !== undefined;
     }
     if (pen.type === 'bull') {
       return (
@@ -551,7 +654,7 @@
   function pendingTurnTotalPts() {
     if (!allTurnThrowsSelected()) return null;
     var pen = state.pending;
-    if (pen.type === 'sector') return wedgeMultPoints(pen.mults);
+    if (pen.type === 'sector') return wedgeTurnPoints(pen.turnScore);
     if (pen.type === 'bull') return bullValsPoints(pen.vals);
     return null;
   }
@@ -561,16 +664,9 @@
     var pen = state.pending;
     if (!pen || state.phase !== 'playing') return '-';
     if (pen.type === 'sector') {
-      var sum = 0;
-      var any = false;
-      for (var i = 0; i < 3; i++) {
-        var m = pen.mults[i];
-        if (m !== null && m !== undefined) {
-          sum += m;
-          any = true;
-        }
-      }
-      return any ? String(sum) : '-';
+      return pen.turnScore !== null && pen.turnScore !== undefined
+        ? String(pen.turnScore)
+        : '-';
     }
     if (pen.type === 'bull') {
       var bSum = 0;
@@ -609,14 +705,18 @@
     var p = playerById(pid);
     if (!p || !pen) return;
 
+    var turnPts = 0;
     if (pen.type === 'sector') {
-      p.score += wedgeMultPoints(pen.mults);
-      applySectorMultStats(p, pen.mults);
+      turnPts = wedgeTurnPoints(pen.turnScore);
+      p.score += turnPts;
+      applySectorTurnStats(p, pen.turnScore);
     } else if (pen.type === 'bull') {
-      p.score += bullValsPoints(pen.vals);
+      turnPts = bullValsPoints(pen.vals);
+      p.score += turnPts;
     } else {
       return;
     }
+    addRoundPoints(p, state.round, turnPts);
 
     state.turnIndex += 1;
     if (state.turnIndex >= state.roundPlayerIds.length) {
@@ -631,7 +731,7 @@
     if (state.roundTarget.k === 'bull') {
       state.pending = { type: 'bull', vals: [null, null, null] };
     } else {
-      state.pending = { type: 'sector', mults: [null, null, null] };
+      state.pending = freshSectorPending();
     }
     saveGame();
     renderGame();
@@ -647,10 +747,47 @@
     return 'th';
   }
 
+  function renderRoundScoresTable(playersSorted) {
+    ensureRoundTargets();
+    var $table = $('#standings-round-scores-table');
+    if (!$table.length) return;
+
+    var $thead = $table.find('thead').empty();
+    var $tbody = $table.find('tbody').empty();
+    var $headRow = $('<tr></tr>');
+    $headRow.append($('<th scope="col"></th>').text('Round'));
+    playersSorted.forEach(function (p) {
+      $headRow.append($('<th scope="col" class="text-end"></th>').text(p.name));
+    });
+    $thead.append($headRow);
+
+    for (var r = 1; r <= ROUND_COUNT; r++) {
+      var target = state.roundTargets[r - 1];
+      var $row = $('<tr></tr>');
+      $row.append(
+        $('<th scope="row" class="text-nowrap"></th>').text(roundTargetRowLabel(target))
+      );
+      playersSorted.forEach(function (p) {
+        ensureRoundScores(p);
+        var pts = p.roundScores[r - 1];
+        $row.append($('<td class="text-end"></td>').text(typeof pts === 'number' ? String(pts) : '—'));
+      });
+      $tbody.append($row);
+    }
+
+    var $totalRow = $('<tr class="table-light fw-semibold"></tr>');
+    $totalRow.append($('<th scope="row"></th>').text('Total'));
+    playersSorted.forEach(function (p) {
+      $totalRow.append($('<td class="text-end"></td>').text(String(p.score)));
+    });
+    $tbody.append($totalRow);
+  }
+
   function renderFinished() {
-    var sorted = state.players
+    var playersSorted = state.players.slice().sort(compareStanding);
+    var sorted = playersSorted
       .map(function (p) {
-        return {
+        var row = {
           id: p.id,
           name: p.name,
           score: p.score,
@@ -658,6 +795,9 @@
           doubles: typeof p.doubles === 'number' ? p.doubles : 0,
           singles: typeof p.singles === 'number' ? p.singles : 0,
         };
+        ensureRoundScores(p);
+        row.roundScores = p.roundScores.slice();
+        return row;
       })
       .sort(compareStanding);
 
@@ -665,14 +805,7 @@
     var displayRank = 0;
     var prevKey = null;
     sorted.forEach(function (row, idx) {
-      var key =
-        row.score +
-        '|' +
-        row.triples +
-        '|' +
-        row.doubles +
-        '|' +
-        row.singles;
+      var key = standingRankKey(row);
       if (prevKey === null || key !== prevKey) {
         displayRank = idx + 1;
       }
@@ -722,6 +855,8 @@
     $pv.append(podiumColumn(3, third, '🥉'));
     $wrap.append($pv);
 
+    renderRoundScoresTable(playersSorted);
+
     var $rest = $('#standings-rest-list');
     $rest.empty();
     var anyRest = false;
@@ -759,10 +894,15 @@
         if (state.targetSector !== undefined) delete state.targetSector;
         ensureUsedWedgeNumbers();
         normalizeRoundTargetForCurrentRound();
+        ensureRoundTargets();
+        if (state.phase === 'playing') {
+          recordCurrentRoundTarget();
+        }
         state.players.forEach(function (p) {
           if (typeof p.triples !== 'number') p.triples = 0;
           if (typeof p.doubles !== 'number') p.doubles = 0;
           if (typeof p.singles !== 'number') p.singles = 0;
+          ensureRoundScores(p);
         });
         if (state.phase === 'playing') {
           var wantBull = state.roundTarget && state.roundTarget.k === 'bull';
@@ -770,7 +910,12 @@
           if (!state.pending || wantBull !== pendingBull) {
             state.pending = wantBull
               ? { type: 'bull', vals: [null, null, null] }
-              : { type: 'sector', mults: [null, null, null] };
+              : freshSectorPending();
+          } else if (
+            state.pending.type === 'sector' &&
+            (state.pending.mults !== undefined || state.pending.turnScore === undefined)
+          ) {
+            state.pending = freshSectorPending();
           }
         }
         if (state.phase === 'playing') {
@@ -799,6 +944,7 @@
       round: 1,
       roundTarget: null,
       usedWedgeNumbers: [],
+      roundTargets: [],
       roundPlayerIds: [],
       turnIndex: 0,
       pending: null,
@@ -842,17 +988,13 @@
 
     $('#btn-start-game').on('click', startGameFromSetup);
 
-    $(document).on('click', '.throw-btn', function () {
+    $(document).on('click', '.sector-turn-digit', function () {
       if (state.phase !== 'playing') return;
-      if ($(this).attr('data-bull-idx') !== undefined) return;
-      var idx = Number($(this).attr('data-throw-idx'));
-      var m = Number($(this).attr('data-mult'));
-      if (state.pending && state.pending.type === 'sector') {
-        state.pending.mults[idx] = m;
-        saveGame();
-        renderThrowsPanel();
-        updateConfirmEnabled();
-      }
+      if (!state.pending || state.pending.type !== 'sector') return;
+      state.pending.turnScore = Number($(this).attr('data-turn-score'));
+      saveGame();
+      renderThrowsPanel();
+      updateConfirmEnabled();
     });
 
     $(document).on('click', '[data-bull-idx]', function () {
@@ -879,6 +1021,7 @@
         round: 1,
         roundTarget: null,
         usedWedgeNumbers: [],
+        roundTargets: [],
         roundPlayerIds: [],
         turnIndex: 0,
         pending: null,

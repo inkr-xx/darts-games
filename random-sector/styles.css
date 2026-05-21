@@ -2,3 +2,35 @@
 #dartboard-wedge-label {
   visibility: hidden !important;
 }
+
+.calc-keypad-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.calc-keypad-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.calc-keypad-row .btn {
+  min-height: 3rem;
+  font-weight: 600;
+}
+
+.calc-keypad-row--zero-row .calc-keypad-placeholder {
+  min-height: 3rem;
+}
+
+#standings-round-scores-table th[scope='row'] {
+  font-weight: 600;
+}
+
+#standings-round-scores-table thead th {
+  white-space: nowrap;
+}
