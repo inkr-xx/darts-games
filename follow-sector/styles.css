@@ -2,3 +2,11 @@
 #dartboard-wedge-label {
   visibility: hidden !important;
 }
+
+#standings-round-scores-table th[scope='row'] {
+  font-weight: 600;
+}
+
+#standings-round-scores-table thead th {
+  white-space: nowrap;
+}

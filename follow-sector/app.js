@@ -18,7 +18,11 @@
     turnIndex: 0,
     pending: null,
     tiebreak: null,
+    /** Target per round index 0..6 (wedge, bull, or null if none set). */
+    roundTargets: [],
   };
+
+  var ROUND_COUNT = 7;
 
   function saveGame() {
     try {
@@ -250,6 +254,56 @@
     $('#sector-board-card').toggleClass('d-none', !show);
   }
 
+  function freshRoundScores() {
+    var scores = [];
+    for (var i = 0; i < ROUND_COUNT; i++) scores.push(0);
+    return scores;
+  }
+
+  function ensureRoundScores(p) {
+    if (!p) return;
+    if (!Array.isArray(p.roundScores) || p.roundScores.length !== ROUND_COUNT) {
+      p.roundScores = freshRoundScores();
+    }
+  }
+
+  function addPlayingRoundPoints(p, pts) {
+    if (state.phase !== 'playing' || !p) return;
+    ensureRoundScores(p);
+    var idx = Math.max(0, Math.min(ROUND_COUNT - 1, (Number(state.round) || 1) - 1));
+    p.roundScores[idx] += pts;
+  }
+
+  function cloneRoundTarget(t) {
+    if (!t) return null;
+    if (t.k === 'bull') return { k: 'bull' };
+    if (t.k === 'wedge') return { k: 'wedge', n: t.n };
+    return null;
+  }
+
+  function recordRoundTargetForCurrentRound() {
+    if (!Array.isArray(state.roundTargets)) state.roundTargets = [];
+    var idx = Math.max(0, Math.min(ROUND_COUNT - 1, (Number(state.round) || 1) - 1));
+    state.roundTargets[idx] = cloneRoundTarget(state.target);
+  }
+
+  function ensureRoundTargets() {
+    if (!Array.isArray(state.roundTargets)) state.roundTargets = [];
+    while (state.roundTargets.length < ROUND_COUNT) {
+      state.roundTargets.push(null);
+    }
+    if (state.roundTargets.length > ROUND_COUNT) {
+      state.roundTargets = state.roundTargets.slice(0, ROUND_COUNT);
+    }
+  }
+
+  function roundTargetRowLabel(target) {
+    if (!target) return '—';
+    if (target.k === 'bull') return 'Bull';
+    if (target.k === 'wedge' && typeof target.n === 'number') return String(target.n);
+    return '—';
+  }
+
   function playerById(id) {
     for (var i = 0; i < state.players.length; i++) {
       if (state.players[i].id === id) return state.players[i];
@@ -458,6 +512,7 @@
       turnIndex: 0,
       pending: null,
       tiebreak: null,
+      roundTargets: [],
     };
   }
 
@@ -474,7 +529,7 @@
     names.forEach(function (name, i) {
       var id = 'p_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 7);
       fixed.push(id);
-      players.push({ id: id, name: name, score: 0 });
+      players.push({ id: id, name: name, score: 0, roundScores: freshRoundScores() });
     });
 
     var shuffled = shuffleArray(fixed);
@@ -495,6 +550,7 @@
       establishChoice: null,
     };
     state.tiebreak = null;
+    state.roundTargets = [];
 
     saveGame();
     renderGame();
@@ -516,6 +572,7 @@
   }
 
   function completeRoundAfterPlay() {
+    recordRoundTargetForCurrentRound();
     if (state.round < 7) {
       beginPlayingRound(state.round + 1);
       saveGame();
@@ -938,6 +995,7 @@
         ptsNow += scoreDartVsTarget(pen.throws[j], tgt);
       }
       p.score += ptsNow;
+      addPlayingRoundPoints(p, ptsNow);
 
       state.target = tgt;
       state.roundPhase = 'scoring';
@@ -996,6 +1054,7 @@
       add = bullTurnPoints(pen.vals);
     }
     p.score += add;
+    addPlayingRoundPoints(p, add);
 
     state.turnIndex += 1;
     if (state.turnIndex >= state.roundOrder.length) {
@@ -1089,14 +1148,50 @@
     return 'th';
   }
 
+  function renderRoundScoresTable(playersSorted) {
+    ensureRoundTargets();
+    var $table = $('#standings-round-scores-table');
+    if (!$table.length) return;
+
+    var $thead = $table.find('thead').empty();
+    var $tbody = $table.find('tbody').empty();
+    var $headRow = $('<tr></tr>');
+    $headRow.append($('<th scope="col"></th>').text('Round'));
+    playersSorted.forEach(function (p) {
+      $headRow.append($('<th scope="col" class="text-end"></th>').text(p.name));
+    });
+    $thead.append($headRow);
+
+    for (var r = 1; r <= ROUND_COUNT; r++) {
+      var target = state.roundTargets[r - 1];
+      var $row = $('<tr></tr>');
+      $row.append(
+        $('<th scope="row" class="text-nowrap"></th>').text(roundTargetRowLabel(target))
+      );
+      playersSorted.forEach(function (p) {
+        ensureRoundScores(p);
+        var pts = p.roundScores[r - 1];
+        $row.append($('<td class="text-end"></td>').text(typeof pts === 'number' ? String(pts) : '—'));
+      });
+      $tbody.append($row);
+    }
+
+    var $totalRow = $('<tr class="table-light fw-semibold"></tr>');
+    $totalRow.append($('<th scope="row"></th>').text('Total'));
+    playersSorted.forEach(function (p) {
+      $totalRow.append($('<td class="text-end"></td>').text(String(p.score)));
+    });
+    $tbody.append($totalRow);
+  }
+
   function renderFinished() {
-    var sorted = state.players
+    var playersSorted = state.players.slice().sort(function (a, b) {
+      if (b.score !== a.score) return b.score - a.score;
+      return state.fixedPlayerIds.indexOf(a.id) - state.fixedPlayerIds.indexOf(b.id);
+    });
+    var sorted = playersSorted
       .map(function (p) {
         return { id: p.id, name: p.name, score: p.score };
-      })
-      .sort(function (a, b) {
-        if (b.score !== a.score) return b.score - a.score;
-        return state.fixedPlayerIds.indexOf(a.id) - state.fixedPlayerIds.indexOf(b.id);
       });
 
     var rowsWithRank = [];
@@ -1145,6 +1240,8 @@
     $pv.append(podiumColumn(3, third, '🥉'));
     $wrap.append($pv);
 
+    renderRoundScoresTable(playersSorted);
+
     var $rest = $('#standings-rest-list');
     $rest.empty();
     var anyRest = false;
@@ -1171,6 +1268,10 @@
       normalizeLegacyVisitPending(state.pending);
       if (state.tiebreak && state.tiebreak.pending) normalizeLegacyVisitPending(state.tiebreak.pending);
       if (!state.initialRoundOrder) state.initialRoundOrder = state.fixedPlayerIds.slice();
+      state.players.forEach(function (p) {
+        ensureRoundScores(p);
+      });
+      ensureRoundTargets();
       if (!state.pending && state.phase === 'playing') {
         state.pending =
           state.roundPhase === 'pickTarget' && !state.target
